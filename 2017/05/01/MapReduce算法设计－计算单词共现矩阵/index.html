@@ -74,7 +74,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="MapReduce," />
 
 
 
@@ -90,15 +90,22 @@
 
 
 
-<meta name="description" content="小渣渣的成牛之路">
-<meta property="og:type" content="website">
-<meta property="og:title" content="念雨">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="##技术原理请参见博文： Data-Intensive Text Processing with MapReduce 第三章（2）——PAIRS AND STRIPESData-Intensive Text Processing with MapReduce第三章（3）——COMPUTING RELATIVE FREQUENCIES ##程序实现 ###首先我们实现基于共现次数的单词共现矩阵的Ma">
+<meta name="keywords" content="MapReduce">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MapReduce算法设计－计算单词共现矩阵">
+<meta property="og:url" content="http://yoursite.com/2017/05/01/MapReduce算法设计－计算单词共现矩阵/index.html">
 <meta property="og:site_name" content="念雨">
-<meta property="og:description" content="小渣渣的成牛之路">
+<meta property="og:description" content="##技术原理请参见博文： Data-Intensive Text Processing with MapReduce 第三章（2）——PAIRS AND STRIPESData-Intensive Text Processing with MapReduce第三章（3）——COMPUTING RELATIVE FREQUENCIES ##程序实现 ###首先我们实现基于共现次数的单词共现矩阵的Ma">
+<meta property="og:image" content="http://img.blog.csdn.net/20160110143100520">
+<meta property="og:image" content="http://img.blog.csdn.net/20160110143350822">
+<meta property="og:image" content="http://img.blog.csdn.net/20160110152831407">
+<meta property="og:image" content="http://img.blog.csdn.net/20160110152847703">
+<meta property="og:updated_time" content="2017-05-01T12:07:47.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="念雨">
-<meta name="twitter:description" content="小渣渣的成牛之路">
+<meta name="twitter:title" content="MapReduce算法设计－计算单词共现矩阵">
+<meta name="twitter:description" content="##技术原理请参见博文： Data-Intensive Text Processing with MapReduce 第三章（2）——PAIRS AND STRIPESData-Intensive Text Processing with MapReduce第三章（3）——COMPUTING RELATIVE FREQUENCIES ##程序实现 ###首先我们实现基于共现次数的单词共现矩阵的Ma">
+<meta name="twitter:image" content="http://img.blog.csdn.net/20160110143100520">
 
 
 
@@ -126,13 +133,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/"/>
+  <link rel="canonical" href="http://yoursite.com/2017/05/01/MapReduce算法设计－计算单词共现矩阵/"/>
 
 
 
 
 
-  <title>念雨</title>
+  <title>MapReduce算法设计－计算单词共现矩阵 | 念雨</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -157,9 +164,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-   page-home 
- ">
+  <div class="container sidebar-position-left page-post-detail ">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -262,9 +267,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -294,10 +299,7 @@
             
             
               
-                
-                <a class="post-title-link" href="/2017/05/01/MapReduce算法设计－计算单词共现矩阵/" itemprop="url">
-                  MapReduce算法设计－计算单词共现矩阵
-                </a>
+                MapReduce算法设计－计算单词共现矩阵
               
             
           </h1>
@@ -369,9 +371,7 @@
       
 
       
-        
-          
-            <p>##技术原理<br>请参见博文：<br><a href="http://blog.csdn.net/xhyzfl/article/details/6898876" target="_blank" rel="external"> Data-Intensive Text Processing with MapReduce 第三章（2）——PAIRS AND STRIPES</a><br><a href="http://blog.csdn.net/xhyzfl/article/details/6908341" target="_blank" rel="external">Data-Intensive Text Processing with MapReduce第三章（3）——COMPUTING RELATIVE FREQUENCIES</a></p>
+        <p>##技术原理<br>请参见博文：<br><a href="http://blog.csdn.net/xhyzfl/article/details/6898876" target="_blank" rel="external"> Data-Intensive Text Processing with MapReduce 第三章（2）——PAIRS AND STRIPES</a><br><a href="http://blog.csdn.net/xhyzfl/article/details/6908341" target="_blank" rel="external">Data-Intensive Text Processing with MapReduce第三章（3）——COMPUTING RELATIVE FREQUENCIES</a></p>
 <p>##程序实现</p>
 <p>###首先我们实现基于共现次数的单词共现矩阵的MapReduce实现。</p>
 <h4 id="Pair的方式"><a href="#Pair的方式" class="headerlink" title="Pair的方式"></a>Pair的方式</h4><h5 id="自定义Pair类："><a href="#自定义Pair类：" class="headerlink" title="自定义Pair类："></a>自定义Pair类：</h5><figure class="highlight aspectj"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.co_occurrence_matrix;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.DataInput;</div><div class="line"><span class="keyword">import</span> java.io.DataOutput;</div><div class="line"><span class="keyword">import</span> java.io.IOException;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.Text;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.WritableComparable;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.WritableComparator;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.WritableUtils;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * </div><div class="line"> * <span class="doctag">@author</span> liupenghe</div><div class="line"> * 自定义TextPair Writable类型</div><div class="line"> *</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TextPair</span> <span class="keyword">implements</span> <span class="title">WritableComparable</span>&lt;<span class="title">TextPair</span>&gt;</span>&#123;</div><div class="line">	</div><div class="line">	<span class="keyword">private</span> Text first;</div><div class="line">	<span class="keyword">private</span> Text second;</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 默认的构造函数，这样MapReduce方法才能创建对象，然后通过readFeilds方法从序列化数据流中独处进行赋值</div><div class="line">	 */</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">TextPair</span><span class="params">()</span> </span>&#123;</div><div class="line">		set (<span class="keyword">new</span> Text(), <span class="keyword">new</span> Text());</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">TextPair</span><span class="params">(String first, String second)</span> </span>&#123;</div><div class="line">		set(<span class="keyword">new</span> Text(first), <span class="keyword">new</span> Text(second));</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">TextPair</span><span class="params">(Text first, Text second)</span> </span>&#123;</div><div class="line">		set(first, second);</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">void</span> <span class="title">set</span><span class="params">(Text first, Text second)</span> </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">this</span>.first = first;</div><div class="line">		<span class="keyword">this</span>.second = second;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">public</span> <span class="function">Text <span class="title">getFirst</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> first;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">public</span> <span class="function">Text <span class="title">getSecond</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> second;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 通过成员对象本身的readFeilds方法，从输入流中反序列化每一个成员对象</div><div class="line">	 * <span class="doctag">@param</span> arg0</div><div class="line">	 * <span class="doctag">@throws</span> IOException</div><div class="line">	 */</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">void</span> <span class="title">readFields</span><span class="params">(DataInput arg0)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		first.readFields(arg0);</div><div class="line">		second.readFields(arg0);</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 通过成员对象本身的write方法，序列化每一个成员对象到输出流中</div><div class="line">	 * <span class="doctag">@param</span> arg0</div><div class="line">	 * <span class="doctag">@throws</span> IOException</div><div class="line">	 */</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">void</span> <span class="title">write</span><span class="params">(DataOutput arg0)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		first.write(arg0);</div><div class="line">		second.write(arg0);</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 实现WritableComparable必须要实现的方法，用语比较排序</div><div class="line">	 * <span class="doctag">@param</span> TextPair</div><div class="line">	 * <span class="doctag">@return</span></div><div class="line">	 */</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">int</span> <span class="title">compareTo</span><span class="params">(TextPair tp)</span> </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">int</span> cmp = first.compareTo(tp.first);</div><div class="line">		<span class="keyword">if</span>(cmp != <span class="number">0</span>) &#123;</div><div class="line">			<span class="keyword">return</span> cmp;</div><div class="line">		&#125;</div><div class="line">		<span class="function"><span class="keyword">return</span> second.<span class="title">compareTo</span><span class="params">(tp.second)</span></span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 就像针对java语言构造任何值的对象，需要重写java.lang.Object中的hashCode(), equals()和toString()方法</div><div class="line">	 */</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * MapReduce需要一个Partitioner把map的输出作为输入分成一块块喂给多个reduce</div><div class="line">	 * 默认的是HashPartitioner，它是通过对象的hashCode函数进行分割，所以hashCode的好坏决定了分割是否均匀，它是一个关键的方法</div><div class="line">	 * <span class="doctag">@return</span></div><div class="line">	 */</div><div class="line">	<span class="comment">//当不使用reletive frequency时采用该hashCode求值方式</span></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> first.hashCode() * <span class="number">163</span> + second.hashCode(); </div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function"><span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object o)</span> </span>&#123;</div><div class="line">		<span class="keyword">if</span>(o <span class="keyword">instanceof</span> TextPair) &#123;</div><div class="line">			TextPair tp = (TextPair) o;</div><div class="line">			<span class="keyword">return</span> first.equals(tp.first) &amp;&amp; second.equals(tp.second);</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 重写toString方法，作为TextOutputFormat输出格式的输出</div><div class="line">	 * <span class="doctag">@return</span></div><div class="line">	 */</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">public</span> <span class="function">String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> first + <span class="string">","</span> + second;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 当Textpair被用作健时，需要将数据流反序列化为对象，然后再调用compareTo()方法进行比较。</div><div class="line">	 * 为了提升效率，可以直接对数据的序列化表示来进行比较</div><div class="line">	 */</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span> <span class="keyword">extends</span> <span class="title">WritableComparator</span> </span>&#123;</div><div class="line">		<span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Text.Comparator TEXT_COMPARATOR = <span class="keyword">new</span> Text.Comparator();</div><div class="line">		</div><div class="line">		<span class="function"><span class="keyword">public</span> <span class="title">Comparator</span><span class="params">()</span> </span>&#123;</div><div class="line">			<span class="keyword">super</span>(TextPair.class);</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">		<span class="meta">@Override</span></div><div class="line">		<span class="keyword">public</span> <span class="function"><span class="keyword">int</span> <span class="title">compare</span><span class="params">(<span class="keyword">byte</span>[] b1, <span class="keyword">int</span> s1, <span class="keyword">int</span> l1, <span class="keyword">byte</span>[] b2, <span class="keyword">int</span> s2, <span class="keyword">int</span> l2)</span> </span>&#123;</div><div class="line">			<span class="keyword">try</span> &#123;</div><div class="line">				<span class="comment">/**</span></div><div class="line">				 * Text对象的二进制表示是一个长度可变的证书，包含字符串之UTF－8表示的字节数以及UTF－8字节本身。</div><div class="line">				 * 读取该对象的起始长度，由此得知第一个Text对象的字节表示有多长；然后将该长度传给Text对象RawComparator方法</div><div class="line">				 * 最后通过计算第一个字符串和第二个字符串恰当的偏移量，从而实现对象的比较</div><div class="line">				 * decodeVIntSize返回变长整形的长度，readVInt表示文本字节数组的长度，加起来就是某个成员的长度</div><div class="line">				 */</div><div class="line">				<span class="keyword">int</span> firstL1 = WritableUtils.decodeVIntSize(b1[s1]) + readVInt(b1, s1);</div><div class="line">				<span class="keyword">int</span> firstL2 = WritableUtils.decodeVIntSize(b2[s2]) + readVInt(b2, s2);</div><div class="line">				</div><div class="line">				<span class="comment">//先比较first</span></div><div class="line">				<span class="keyword">int</span> cmp = TEXT_COMPARATOR.compare(b1, s1, firstL1, b2, s2, firstL2);</div><div class="line">				<span class="keyword">if</span>(cmp != <span class="number">0</span>) &#123;</div><div class="line">					<span class="keyword">return</span> cmp;</div><div class="line">				&#125;</div><div class="line">				<span class="comment">//再比较second</span></div><div class="line">				<span class="function"><span class="keyword">return</span> TEXT_COMPARATOR.<span class="title">compare</span><span class="params">(b1, s1 + firstL1, l1 - firstL1, b2, s2 + firstL2,  l2 - firstL2)</span></span>;</div><div class="line">			&#125; <span class="keyword">catch</span> (IOException e) &#123;</div><div class="line">				<span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException();</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="comment">//注册RawComparator, 这样MapReduce使用TextPair时就会直接调用Comparator</span></div><div class="line">	<span class="keyword">static</span> &#123;</div><div class="line">		WritableComparator.define(TextPair.class, <span class="keyword">new</span> Comparator());</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">&#125;</div></pre></td></tr></table></figure>
@@ -394,232 +394,72 @@
 <h5 id="Stripe方式-1"><a href="#Stripe方式-1" class="headerlink" title="Stripe方式"></a>Stripe方式</h5><figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">Total time spent <span class="keyword">by</span> <span class="literal">all</span> <span class="built_in">map</span> tasks (ms)=<span class="number">212706</span></div><div class="line">Total time spent <span class="keyword">by</span> <span class="literal">all</span> reduce tasks (ms)=<span class="number">268947</span></div><div class="line"><span class="built_in">Map</span> output <span class="built_in">bytes</span>=<span class="number">1281341916</span></div><div class="line">Reduce shuffle <span class="built_in">bytes</span>=<span class="number">1309411451</span></div><div class="line">GC time elapsed (ms)=<span class="number">3162</span></div><div class="line">CPU time spent (ms)=<span class="number">305890</span></div></pre></td></tr></table></figure>
 <h5 id="做出对比图-1"><a href="#做出对比图-1" class="headerlink" title="做出对比图"></a>做出对比图</h5><p><img src="http://img.blog.csdn.net/20160110152831407" alt="时间对比"><br><img src="http://img.blog.csdn.net/20160110152847703" alt="空间对比"></p>
 
-          
+      
+    </div>
+
+    <div>
+      
         
+
       
     </div>
 
     <div>
       
-    </div>
+        
 
-    <div>
       
     </div>
 
     <div>
+      
+        
+
       
     </div>
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/27/MapReduce-算法设计－Local-Aggregation/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="PengheLiu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="念雨">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2017/04/27/MapReduce-算法设计－Local-Aggregation/" itemprop="url">
-                  MapReduce 算法设计－Local Aggregation
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-27T15:22:16+08:00">
-                2017-04-27
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/分布式计算/" itemprop="url" rel="index">
-                    <span itemprop="name">分布式计算</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
+            <a href="/tags/MapReduce/" rel="tag"># MapReduce</a>
           
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
-
-    <div class="post-body" itemprop="articleBody">
-
-      
       
 
       
         
-          
-            <h1 id="MapReduce-算法设计-Local-Aggregation"><a href="#MapReduce-算法设计-Local-Aggregation" class="headerlink" title="MapReduce 算法设计-Local Aggregation"></a>MapReduce 算法设计-Local Aggregation</h1><p>本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。<br>更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链接。</p>
-<hr>
-<h2 id="1-技术原理"><a href="#1-技术原理" class="headerlink" title="1 技术原理"></a>1 技术原理</h2><p>在数据密集型分布式处理环境中，同步化最重要的一个特征是中间数据的转移，即从产生数据的步骤到使用这些数据的步骤。在Hadoop中，中间结果在通过网络发送出去之前先写入本地磁盘。由于网络传输以及磁盘延迟相对于其他操作比较费时，因而减少中间数据的产生则会提高算法的效率。在MapReduce中，对中间结果的local aggregation是提升算法效率的几种关键手段之一。</p>
-<p>为了说明local aggregation的几种不同手段，我们使用一个简单的例子－word count问题。图1给出了最基本的word count程序的伪代码，原理非常简单：mapper函数为其观测到的每一个单词发送一个中间结果的key-value对，其中key为其观测到的单词本身，value的值为1；reducers函数累加所有的中间结果并输出最终结果。</p>
-<p><img src="http://img.blog.csdn.net/20151226170503018" alt="图1 基于MapReduce的基本word count算法伪代码"></p>
-<p> local aggregation的第一种手段是利用combiner，combiners为在MapReduce框架下减少由mapper产生的中间数据提供了一个通用的机理，它们可以理解为为 “mini-reducers“来处理mappers的输出结果。在本例中，combiners会聚合被不同mapper处理出来的term count值。因而，需要通过网络shuffled的中间结果key-value对的数量就会减少，即从划分出的所有的terms的数量减少为独有的terms的数量（通过combine聚合了重复的key-value对）。</p>
-<p>一种对上面基本算法的改进算法如下图所示，其中reducer保持不变。主要区别在于在map函数中加入一关联数组来总结来自同一个文档（或同一行，看mapper split方式）的term counts值。因而，不再是对该文档（行）中的每一个单词都发送一个key-value对，而是对该文档（行）中每一个不同的单词发送key-value对。如果某文档（行）含有大量重复terms，这种方法可以极大地减少中间结果的数量。简单举例如“a b a a b b b“，基本方法将会发送7个key-value对，而改进方法只需发送2个key-value对。</p>
-<p><img src="http://img.blog.csdn.net/20151226173145932" alt="图2 利用一关联数组聚合中间结果的改进word count算法"></p>
-<p>上述的思想可以更进一步，如下图的算法变种。同样，只需改变mapper，而reducer无需改变。改算法的运行得益于Hadoop中的mapper和reducer是如何运行的。mapper开始于一个初始化函数，在该函数中在处理任何输入key-value对之前初始化一关联数组。由于可以保存跨越多个map函数的状态，因而我们可以继续利用该关联数据来累加来自跨越多个文档（行）中的term counts，然后等所有的mapper处理完了所有的文档（行）再发送中间结果key-value对。也就是，在伪代码中，中间结果key-value对的发送是被延迟到了close函数中，即等map函数处理完所有的输入key-value对。</p>
-<p><img src="http://img.blog.csdn.net/20151226174417471" alt="图3 利用关联数组对word count算法的更进一步改进"></p>
-<p>在上述的技术手段中，我们把combiner的函数功能直接迁移进了mapper中，这种设计模式被称为“in-mapper combining“。这种设计模式有几种明显的优点：</p>
-<ol>
-<li>提供对local aggregation 的何时发生以及怎样发生的完全控制。相反，combiner的语义在MapReduce中是不指定的。Hadoop并不保证combiner会被应用多少次或者一次都不用。在某些情况下，这种中间机制是不可接受的，这也是为什么程序员经常会在mapper里使用local aggregation。</li>
-<li>in-mapper combining比实际的combiner要更高效。其中的一个原因是combiner虽然减少了通过网络shuffled中间结果key-value对数量，但并没有真正的减少在mapper第一阶段产生的中间结果key-value对数量。而在这一阶段包含许多不必要的对象创建与销毁（垃圾回收需要时间），更进一步，以及对象的序列化与反序列化（中间结果存本地与再读入内存）。相反，使用in-mapper combining只需为那些真正需要在网络上shuffled的中间结果key-value对创建上述那些东西。</li>
-</ol>
-<p>当然，in-mapper combining设计模式也存在缺点。</p>
-<ol>
-<li>其打破了MapReduce的函数式编程理念，因为其保存了来自多个输入key-value对的状态。这一点也不是个大问题，因为为了提高效率，人们经常牺牲一下理论的“纯净性“。保存来自不同输入对的状态意味着算法依赖于遇到的输入key-value对的顺序，这可能会导致顺序依赖的bugs，而当数据量很大时却又很难debug。</li>
-<li>in-mapper combining技术有一个最基本的可扩展性瓶颈问题。因为其依赖于有足够的内存来保存中间结果，直到所有的mapper处理完所有的输入key-value对。图3的算法只能扩展到某一个点，超出后，内存中将放不下关联数组中的数据。</li>
-</ol>
-<p>一种常用的限制内存使用的解决方案是当使用in-mapper combining技术时去“block“输入key-value对并且周期性的“flush“在内存中的数据。想法很简单：当每处理完n个输入key-value对发送部分结果，而不是等每一个输入key-value对处理完再发送key-value对。可以直接地通过一个计数变量实现，该计数变量记录着已经被处理过的输入key-value对的数量。另外一种实现时，mapper可以追踪其自身的内存痕迹，当内存使用率到达一定阈值时“flush“中间结果key-value对。</p>
-<p>本部分也有很多人直接翻译过书本第三章内容，这里给出参考链接：<br><a href="http://blog.csdn.net/xhyzfl/article/details/6898442" target="_blank" rel="external">Data-Intensive Text Processing with MapReduce 第三章（1）——local aggregation</a></p>
-<h2 id="2-程序实现与实验"><a href="#2-程序实现与实验" class="headerlink" title="2 程序实现与实验"></a>2 程序实现与实验</h2><p>针对上述技术原理，我编写了相应的word count程序，并在hadooop集群上做了对比试验。</p>
-<h3 id="2-1-程序代码"><a href="#2-1-程序代码" class="headerlink" title="2.1 程序代码"></a>2.1 程序代码</h3><p>本文程序采用java编写，利用Hadoop-2.6.0 版本提供接口。</p>
-<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div></pre></td><td class="code"><pre><div class="line">package mp.wordcount;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.IOException;</div><div class="line"><span class="keyword">import</span> java.util.HashMap;</div><div class="line"><span class="keyword">import</span> java.util.Map;</div><div class="line"><span class="keyword">import</span> java.util.StringTokenizer;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.conf.Configuration;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.<span class="built_in">FileSystem</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.Path;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.IntWritable;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.LongWritable;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.Text;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.Job;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.Mapper;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.Reducer;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.FileInputFormat;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.TextInputFormat;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * </div><div class="line"> * @author liupenghe</div><div class="line"> * 描述：word count</div><div class="line"> */</div><div class="line"></div><div class="line"><span class="keyword">public</span> class WordCount &#123;</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> class WordMapper extends Mapper&lt;LongWritable, Text, Text, IntWritable&gt; &#123;</div><div class="line">		</div><div class="line">		<span class="keyword">private</span> final <span class="keyword">static</span> IntWritable one = <span class="keyword">new</span> IntWritable(<span class="number">1</span>);</div><div class="line">		<span class="keyword">private</span> Text <span class="keyword">word</span> = <span class="keyword">new</span> Text();</div><div class="line">		</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 描述：map阶段，</div><div class="line">		 * input_key:文件的行索引，input_value:文件的每一行的内容</div><div class="line">		 * output_key:每一个切分后的单词， output_value:1</div><div class="line">		 */</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">map</span>(LongWritable key, Text value, Context context) </div><div class="line">				throws IOException, InterruptedException &#123;</div><div class="line">			<span class="keyword">String</span> <span class="built_in">line</span> = value.toString();</div><div class="line">			StringTokenizer tokenizer = <span class="keyword">new</span> StringTokenizer(<span class="built_in">line</span>);</div><div class="line">			<span class="built_in">while</span> (tokenizer.hasMoreTokens()) &#123;</div><div class="line">				<span class="keyword">word</span>.set(tokenizer.nextToken());</div><div class="line">				context.<span class="built_in">write</span>(<span class="keyword">word</span>, one);</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> class WordMapperWithCombine1 extends Mapper&lt;LongWritable, Text, Text, IntWritable&gt; &#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 描述：map阶段</div><div class="line">		 * 在map里加入combine,即首先在map里统计相同词的频率</div><div class="line">		 */</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">map</span>(LongWritable key, Text value, Context context) </div><div class="line">				throws IOException, InterruptedException&#123;</div><div class="line">			Map&lt;<span class="keyword">String</span>, Integer&gt; wordMap = <span class="keyword">new</span> HashMap&lt;<span class="keyword">String</span>, Integer&gt;();</div><div class="line">			<span class="keyword">String</span> <span class="built_in">line</span> = value.toString();</div><div class="line">			StringTokenizer tokenizer = <span class="keyword">new</span> StringTokenizer(<span class="built_in">line</span>);</div><div class="line">			<span class="built_in">while</span>(tokenizer.hasMoreTokens()) &#123;</div><div class="line">				<span class="keyword">String</span> <span class="keyword">word</span> = tokenizer.nextToken();</div><div class="line">				<span class="built_in">if</span>(wordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) != null) &#123;</div><div class="line">					wordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, wordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) + <span class="number">1</span>); </div><div class="line">				&#125; <span class="built_in">else</span> &#123;</div><div class="line">					wordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, <span class="number">1</span>); </div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">			<span class="comment">//发送统计后的key-value对</span></div><div class="line">			<span class="built_in">for</span>(Map.Entry&lt;<span class="keyword">String</span>, Integer&gt; entry:wordMap.entrySet())&#123;</div><div class="line">				context.<span class="built_in">write</span>(<span class="keyword">new</span> Text(entry.<span class="built_in">getKey</span>()), <span class="keyword">new</span> IntWritable(entry.getValue()));			        </div><div class="line">			&#125;   </div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> class WordMapperWithCombine2 extends Mapper&lt;LongWritable, Text, Text, IntWritable&gt; &#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 描述：map阶段</div><div class="line">		 * map函数统计词频，close函数发送key-value对</div><div class="line">		 */</div><div class="line">		</div><div class="line">		<span class="comment">//声明一全局词典，维护每个词的词频</span></div><div class="line">		<span class="keyword">private</span> Map&lt;<span class="keyword">String</span>, Integer&gt; globalWordMap;</div><div class="line">		</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">setup</span>(Context context) throws IOException, InterruptedException &#123;</div><div class="line">			<span class="comment">//初始化词典</span></div><div class="line">			globalWordMap = <span class="keyword">new</span> HashMap&lt;<span class="keyword">String</span>, Integer&gt;();</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">map</span>(LongWritable key, Text value, Context context) </div><div class="line">				throws IOException, InterruptedException &#123;</div><div class="line">			<span class="keyword">String</span> <span class="built_in">line</span> = value.toString();</div><div class="line">			StringTokenizer tokenizer = <span class="keyword">new</span> StringTokenizer(<span class="built_in">line</span>);</div><div class="line">			<span class="built_in">while</span> (tokenizer.hasMoreTokens()) &#123;</div><div class="line">				<span class="keyword">String</span> <span class="keyword">word</span> = tokenizer.nextToken();</div><div class="line">				<span class="built_in">if</span> (globalWordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) != null) &#123;</div><div class="line">					globalWordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, globalWordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) + <span class="number">1</span>);</div><div class="line">				&#125; <span class="built_in">else</span> &#123;</div><div class="line">					globalWordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, <span class="number">1</span>);</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">		@Override </div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> cleanup(Context context) throws IOException, InterruptedException &#123;</div><div class="line">			<span class="comment">//发送统计后的key-value对</span></div><div class="line">			<span class="built_in">for</span>(Map.Entry&lt;<span class="keyword">String</span>, Integer&gt; entry:globalWordMap.entrySet())&#123;</div><div class="line">				context.<span class="built_in">write</span>(<span class="keyword">new</span> Text(entry.<span class="built_in">getKey</span>()), <span class="keyword">new</span> IntWritable(entry.getValue()));			        </div><div class="line">			&#125;   </div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> class WordMapperWithBlock extends Mapper&lt;LongWritable, Text, Text, IntWritable&gt; &#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 描述：map阶段</div><div class="line">		 * 考虑可扩展性，每当关联数组到达一定大小，发送key-value对</div><div class="line">		 */</div><div class="line">		<span class="keyword">private</span> Map&lt;<span class="keyword">String</span>, Integer&gt; blockWordMap;</div><div class="line">		<span class="keyword">private</span> <span class="keyword">int</span> mapSize = <span class="number">100</span>;</div><div class="line">		</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">setup</span>(Context context) throws IOException, InterruptedException &#123;</div><div class="line">			<span class="comment">//初始化词典</span></div><div class="line">			blockWordMap = <span class="keyword">new</span> HashMap&lt;<span class="keyword">String</span>, Integer&gt;();</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">map</span>(LongWritable key, Text value, Context context) </div><div class="line">				throws IOException, InterruptedException &#123;</div><div class="line">			<span class="keyword">String</span> <span class="built_in">line</span> = value.toString();</div><div class="line">			StringTokenizer tokenizer = <span class="keyword">new</span> StringTokenizer(<span class="built_in">line</span>);</div><div class="line">			<span class="built_in">while</span> (tokenizer.hasMoreTokens()) &#123;</div><div class="line">				<span class="keyword">String</span> <span class="keyword">word</span> = tokenizer.nextToken();</div><div class="line">				<span class="built_in">if</span> (blockWordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) != null) &#123;</div><div class="line">					blockWordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, blockWordMap.<span class="built_in">get</span>(<span class="keyword">word</span>) + <span class="number">1</span>);</div><div class="line">				&#125; <span class="built_in">else</span> &#123;</div><div class="line">					blockWordMap.<span class="built_in">put</span>(<span class="keyword">word</span>, <span class="number">1</span>);</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">			<span class="built_in">if</span> (blockWordMap.<span class="built_in">size</span>() &gt;= mapSize) &#123;</div><div class="line">				<span class="built_in">for</span>(Map.Entry&lt;<span class="keyword">String</span>, Integer&gt; entry: blockWordMap.entrySet()) &#123;</div><div class="line">					context.<span class="built_in">write</span>(<span class="keyword">new</span> Text(entry.<span class="built_in">getKey</span>()), <span class="keyword">new</span> IntWritable(entry.getValue()));</div><div class="line">				&#125;</div><div class="line">				blockWordMap.<span class="built_in">clear</span>();</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> cleanup(Context context) throws IOException, InterruptedException &#123;</div><div class="line">			<span class="built_in">for</span>(Map.Entry&lt;<span class="keyword">String</span>, Integer&gt; entry: blockWordMap.entrySet()) &#123;</div><div class="line">				context.<span class="built_in">write</span>(<span class="keyword">new</span> Text(entry.<span class="built_in">getKey</span>()), <span class="keyword">new</span> IntWritable(entry.getValue()));</div><div class="line">			&#125;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> class WordReducer extends Reducer&lt;Text, IntWritable, Text, IntWritable&gt; &#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 描述：reduce阶段</div><div class="line">		 * input_key:单词，input_value:单词对应的值列表</div><div class="line">		 * output_key:单词，output_value:单词在整个文件中出现次数</div><div class="line">		 */</div><div class="line">		@Override</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> reduce(Text key, Iterable&lt;IntWritable&gt; values, Context context) </div><div class="line">				throws IOException, InterruptedException &#123;</div><div class="line">			<span class="keyword">int</span> sum = <span class="number">0</span>;</div><div class="line">			<span class="built_in">for</span> (IntWritable value : values) &#123;</div><div class="line">				sum += value.<span class="built_in">get</span>();</div><div class="line">			&#125;</div><div class="line">			IntWritable  sumValue = <span class="keyword">new</span> IntWritable(sum);</div><div class="line">			context.<span class="built_in">write</span>(key, sumValue);</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	</div><div class="line"></div><div class="line">	</div><div class="line">	<span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> main(<span class="keyword">String</span>[] args) </div><div class="line">			throws IOException, ClassNotFoundException, InterruptedException &#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		Configuration conf = <span class="keyword">new</span> Configuration();</div><div class="line">		Job wordCountJob = <span class="keyword">new</span> Job(conf, <span class="string">"wordcount"</span>);</div><div class="line">		<span class="comment">//指定作业运行类</span></div><div class="line">		wordCountJob.setJarByClass(WordCount.class);</div><div class="line">		</div><div class="line">		<span class="comment">//指定输入输出文件所在路径</span></div><div class="line">		FileInputFormat.setInputPaths(wordCountJob, <span class="keyword">new</span> Path(args[<span class="number">0</span>]));</div><div class="line">		<span class="built_in">FileSystem</span> fs = <span class="built_in">FileSystem</span>.<span class="built_in">get</span>(conf);</div><div class="line">		Path outputPath = <span class="keyword">new</span> Path(args[<span class="number">1</span>]);</div><div class="line">		<span class="comment">//如果文件输出路径已存在，自动删除</span></div><div class="line">		<span class="built_in">if</span> (fs.<span class="built_in">exists</span>(outputPath)) &#123;</div><div class="line">			System.out.<span class="built_in">println</span>(<span class="string">"输出路径已存在，自动删除！"</span>);</div><div class="line">			fs.<span class="keyword">delete</span>(outputPath, true);</div><div class="line">		&#125;</div><div class="line">		FileOutputFormat.setOutputPath(wordCountJob, outputPath);</div><div class="line">		</div><div class="line">		<span class="comment">//指定输出的格式类型</span></div><div class="line">		wordCountJob.setOutputKeyClass(Text.class);</div><div class="line">		wordCountJob.setOutputValueClass(IntWritable.class);</div><div class="line">		</div><div class="line">		<span class="comment">//指定mapper和reducer类</span></div><div class="line">		<span class="comment">//wordCountJob.setMapperClass(WordMapper.class);  // 无map-combine </span></div><div class="line">		<span class="comment">//wordCountJob.setMapperClass(WordMapperWithCombine1.class);  //加入map-combine1</span></div><div class="line">		<span class="comment">//wordCountJob.setMapperClass(WordMapperWithCombine2.class);    //加入map-combine2</span></div><div class="line">		wordCountJob.setMapperClass(WordMapperWithBlock.class);   <span class="comment">//考虑超出内存时情况</span></div><div class="line">		<span class="comment">//加入reducer前combine函数</span></div><div class="line">		<span class="comment">//wordCountJob.setCombinerClass(WordReducer.class);</span></div><div class="line">		wordCountJob.setReducerClass(WordReducer.class);</div><div class="line">		</div><div class="line">		<span class="comment">//指定输入文件与输出文件格式</span></div><div class="line">		wordCountJob.setInputFormatClass(TextInputFormat.class);</div><div class="line">		wordCountJob.setOutputFormatClass(TextOutputFormat.class);</div><div class="line">		</div><div class="line">		<span class="built_in">if</span> (wordCountJob.waitForCompletion(true)) &#123;</div><div class="line">			System.out.<span class="built_in">println</span>(<span class="string">"程序执行完毕！"</span>);</div><div class="line">		&#125;		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h3 id="2-2-实验环境"><a href="#2-2-实验环境" class="headerlink" title="2.2 实验环境"></a>2.2 实验环境</h3><p>Hadoop版本：Hadoop-2.6.0<br>集群信息：四台服务器构成的Hadoop集群<br>实验数据： 这里只是简单的找了一个日志文件info.log 大小40K</p>
-<h2 id="3-结果分析"><a href="#3-结果分析" class="headerlink" title="3 结果分析"></a>3 结果分析</h2><p>总共做了四组实验，分别是最基本word count算法，使用combiner的word count 算法，使用in-mapper combining第一种的word count算法以及使用in－mapper combining第二种的word count算法。具体结果如下所示：</p>
-<ul>
-<li>最基本word count 算法：</li>
-</ul>
-<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">Map input records=<span class="number">292</span></div><div class="line">Map output records=<span class="number">1670</span></div><div class="line">Map output bytes=<span class="number">45808</span></div><div class="line">Map output materialized bytes=<span class="number">49182</span></div><div class="line">Input split bytes=<span class="number">113</span></div><div class="line">Combine input records=<span class="number">0</span></div><div class="line">Combine output records=<span class="number">0</span></div><div class="line">Reduce input groups=<span class="number">193</span></div><div class="line">Reduce shuffle bytes=<span class="number">49182</span></div><div class="line">Reduce input records=<span class="number">1670</span></div><div class="line">Reduce output records=<span class="number">193</span></div><div class="line">Spilled Records=<span class="number">3340</span></div><div class="line">Shuffled Maps =<span class="number">1</span></div><div class="line">Failed Shuffles=<span class="number">0</span></div><div class="line">Merged Map outputs=<span class="number">1</span></div><div class="line">GC time elapsed (ms)=<span class="number">150</span></div><div class="line">CPU time spent (ms)=<span class="number">2410</span></div><div class="line">Physical memory (bytes) snapshot=<span class="number">433672192</span></div><div class="line">Virtual memory (bytes) snapshot=<span class="number">15116689408</span></div><div class="line">Total committed heap usage (bytes)=<span class="number">239075328</span></div></pre></td></tr></table></figure>
-<ul>
-<li>使用combiner的word count 算法</li>
-</ul>
-<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">   Map input records=<span class="number">292</span></div><div class="line">Map output records=<span class="number">1670</span></div><div class="line">Map output bytes=<span class="number">45808</span></div><div class="line">Map output materialized bytes=<span class="number">5758</span></div><div class="line">Input split bytes=<span class="number">113</span></div><div class="line">Combine input records=<span class="number">1670</span></div><div class="line">Combine output records=<span class="number">193</span></div><div class="line">Reduce input groups=<span class="number">193</span></div><div class="line">Reduce shuffle bytes=<span class="number">5758</span></div><div class="line">Reduce input records=<span class="number">193</span></div><div class="line">Reduce output records=<span class="number">193</span></div><div class="line">Spilled Records=<span class="number">386</span></div><div class="line">Shuffled Maps =<span class="number">1</span></div><div class="line">Failed Shuffles=<span class="number">0</span></div><div class="line">Merged Map outputs=<span class="number">1</span></div><div class="line">GC time elapsed (ms)=<span class="number">163</span></div><div class="line">CPU time spent (ms)=<span class="number">2400</span></div><div class="line">Physical memory (bytes) snapshot=<span class="number">420081664</span></div><div class="line">Virtual memory (bytes) snapshot=<span class="number">15215132672</span></div><div class="line">Total committed heap usage (bytes)=<span class="number">235929600</span></div></pre></td></tr></table></figure>
-<ul>
-<li>第一种in-mapper combining word count  </li>
-</ul>
-<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">Map input records=<span class="number">292</span></div><div class="line">Map output records=<span class="number">1540</span></div><div class="line">Map output bytes=<span class="number">44762</span></div><div class="line">Map output materialized bytes=<span class="number">47876</span></div><div class="line">Input split bytes=<span class="number">113</span></div><div class="line">Combine input records=<span class="number">0</span></div><div class="line">Combine output records=<span class="number">0</span></div><div class="line">Reduce input groups=<span class="number">193</span></div><div class="line">Reduce shuffle bytes=<span class="number">47876</span></div><div class="line">Reduce input records=<span class="number">1540</span></div><div class="line">Reduce output records=<span class="number">193</span></div><div class="line">Spilled Records=<span class="number">3080</span></div><div class="line">Shuffled Maps =<span class="number">1</span></div><div class="line">Failed Shuffles=<span class="number">0</span></div><div class="line">Merged Map outputs=<span class="number">1</span></div><div class="line">GC time elapsed (ms)=<span class="number">462</span></div><div class="line">CPU time spent (ms)=<span class="number">5700</span></div><div class="line">Physical memory (bytes) snapshot=<span class="number">352731136</span></div><div class="line">Virtual memory (bytes) snapshot=<span class="number">15113887744</span></div><div class="line">Total committed heap usage (bytes)=<span class="number">237502464</span></div></pre></td></tr></table></figure>
-<ul>
-<li>第二种in-mapper combining word count 算法</li>
-</ul>
-<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">Map input records=<span class="number">292</span></div><div class="line">Map output records=<span class="number">193</span></div><div class="line">Map output bytes=<span class="number">5364</span></div><div class="line">Map output materialized bytes=<span class="number">5758</span></div><div class="line">Input split bytes=<span class="number">113</span></div><div class="line">Combine input records=<span class="number">0</span></div><div class="line">Combine output records=<span class="number">0</span></div><div class="line">Reduce input groups=<span class="number">193</span></div><div class="line">Reduce shuffle bytes=<span class="number">5758</span></div><div class="line">Reduce input records=<span class="number">193</span></div><div class="line">Reduce output records=<span class="number">193</span></div><div class="line">Spilled Records=<span class="number">386</span></div><div class="line">Shuffled Maps =<span class="number">1</span></div><div class="line">Failed Shuffles=<span class="number">0</span></div><div class="line">Merged Map outputs=<span class="number">1</span></div><div class="line">GC time elapsed (ms)=<span class="number">138</span></div><div class="line">CPU time spent (ms)=<span class="number">2550</span></div><div class="line">Physical memory (bytes) snapshot=<span class="number">422150144</span></div><div class="line">Virtual memory (bytes) snapshot=<span class="number">14928637952</span></div><div class="line">Total committed heap usage (bytes)=<span class="number">239599616</span></div></pre></td></tr></table></figure>
-<ul>
-<li>考虑可扩展性的word count</li>
-</ul>
-<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">Map input records=<span class="number">292</span></div><div class="line">Map output records=<span class="number">371</span></div><div class="line">Map output bytes=<span class="number">10841</span></div><div class="line">Map output materialized bytes=<span class="number">11593</span></div><div class="line">Input split bytes=<span class="number">113</span></div><div class="line">Combine input records=<span class="number">0</span></div><div class="line">Combine output records=<span class="number">0</span></div><div class="line">Reduce input groups=<span class="number">193</span></div><div class="line">Reduce shuffle bytes=<span class="number">11593</span></div><div class="line">Reduce input records=<span class="number">371</span></div><div class="line">Reduce output records=<span class="number">193</span></div><div class="line">Spilled Records=<span class="number">742</span></div><div class="line">Shuffled Maps =<span class="number">1</span></div><div class="line">Failed Shuffles=<span class="number">0</span></div><div class="line">Merged Map outputs=<span class="number">1</span></div><div class="line">GC time elapsed (ms)=<span class="number">139</span></div><div class="line">CPU time spent (ms)=<span class="number">2570</span></div><div class="line">Physical memory (bytes) snapshot=<span class="number">417599488</span></div><div class="line">Virtual memory (bytes) snapshot=<span class="number">14926942208</span></div><div class="line">Total committed heap usage (bytes)=<span class="number">240123904</span></div></pre></td></tr></table></figure>
-<p>将其中的两个重要的参数Map output bytes 和 Reduce shuffle bytes的五次实验值作出图示：<br><img src="http://img.blog.csdn.net/20151227151638380" alt="五组实验对比结果"></p>
-<p>从图中可以明显看出in-mapper combining方法可以明显减少mapper输出的中间结果key-value对的数量以及需要进行Reduce shuffle的中间结果key-value数量，而combiner并未改变mapper输出的中间结果key-value对的数量只是减少了需要进行Reduce shuffle的数量。因而，我们也可以得出结论，当待处理的数据集含有大量的重复的key时，使用in-mapper combining方法可以明显提升算法提升的效率。而如果考虑可扩展性的话（这里为了实验，关联数组大小设置为100），会损失部分算法性能，但可以兼容大规模数据。</p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
       
 
       
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/04/27/MapReduce-算法设计－Local-Aggregation/" rel="prev" title="MapReduce 算法设计－Local Aggregation">
+                MapReduce 算法设计－Local Aggregation <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
 
       
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -627,6 +467,10 @@
 
 
           
+  <div class="comments" id="comments">
+    
+  </div>
+
 
         </div>
         
@@ -646,8 +490,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview sidebar-panel sidebar-panel-active">
+      <section class="site-overview sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg"
@@ -709,6 +562,22 @@
 
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#Pair的方式"><span class="nav-number">1.</span> <span class="nav-text">Pair的方式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#自定义Pair类："><span class="nav-number">1.1.</span> <span class="nav-text">自定义Pair类：</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Mapper的实现"><span class="nav-number">1.2.</span> <span class="nav-text">Mapper的实现</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Reducer的实现"><span class="nav-number">1.3.</span> <span class="nav-text">Reducer的实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Stripe方式实现"><span class="nav-number">2.</span> <span class="nav-text">Stripe方式实现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#自定义Stripe类"><span class="nav-number">2.1.</span> <span class="nav-text">自定义Stripe类</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Mapper的实现-1"><span class="nav-number">2.2.</span> <span class="nav-text">Mapper的实现</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Reducer的实现-1"><span class="nav-number">2.3.</span> <span class="nav-text">Reducer的实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#结果对比"><span class="nav-number">3.</span> <span class="nav-text">结果对比</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Pair方式"><span class="nav-number">3.1.</span> <span class="nav-text">Pair方式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Stripe方式"><span class="nav-number">3.2.</span> <span class="nav-text">Stripe方式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#做出对比图"><span class="nav-number">3.3.</span> <span class="nav-text">做出对比图</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#其次我们实现基于共现相对频率的单词共现矩阵的MapReduce实现。"><span class="nav-number"></span> <span class="nav-text">其次我们实现基于共现相对频率的单词共现矩阵的MapReduce实现。</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Pair方式-1"><span class="nav-number">1.</span> <span class="nav-text">Pair方式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#自定义Pair类"><span class="nav-number">1.1.</span> <span class="nav-text">自定义Pair类</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#还需要有一个特殊的Partitioner"><span class="nav-number">1.2.</span> <span class="nav-text">还需要有一个特殊的Partitioner</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Mapper实现"><span class="nav-number">1.3.</span> <span class="nav-text">Mapper实现</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Reducer实现"><span class="nav-number">1.4.</span> <span class="nav-text">Reducer实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Stripe方式实现-1"><span class="nav-number">2.</span> <span class="nav-text">Stripe方式实现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Reudcer实现"><span class="nav-number">2.1.</span> <span class="nav-text">Reudcer实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#结果对比-1"><span class="nav-number">3.</span> <span class="nav-text">结果对比</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Pair方式-2"><span class="nav-number">3.1.</span> <span class="nav-text">Pair方式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Stripe方式-1"><span class="nav-number">3.2.</span> <span class="nav-text">Stripe方式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#做出对比图-1"><span class="nav-number">3.3.</span> <span class="nav-text">做出对比图</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -822,6 +691,10 @@
   
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
 
   
 
