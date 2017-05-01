@@ -90,21 +90,21 @@
 
 
 
-<meta name="description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta name="description" content="概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因">
 <meta name="keywords" content="MapReduce">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MapReduce 算法设计－Inverted Indexing">
 <meta property="og:url" content="http://yoursite.com/2017/05/01/MapReduce-算法设计－Inverted-Indexing/index.html">
 <meta property="og:site_name" content="念雨">
-<meta property="og:description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta property="og:description" content="概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因">
 <meta property="og:image" content="http://img.blog.csdn.net/20160225093838497">
 <meta property="og:image" content="http://img.blog.csdn.net/20160225094739337">
 <meta property="og:image" content="http://img.blog.csdn.net/20160225095420392">
 <meta property="og:image" content="http://img.blog.csdn.net/20160225100512896">
-<meta property="og:updated_time" content="2017-05-01T12:24:09.000Z">
+<meta property="og:updated_time" content="2017-05-01T12:40:42.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MapReduce 算法设计－Inverted Indexing">
-<meta name="twitter:description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta name="twitter:description" content="概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因">
 <meta name="twitter:image" content="http://img.blog.csdn.net/20160225093838497">
 
 
@@ -371,17 +371,17 @@
       
 
       
-        <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1 概述"></a>1 概述</h1><p>倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：</p>
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：</p>
 <p><img src="http://img.blog.csdn.net/20160225093838497" alt="常见倒排索引结构"></p>
 <p>在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。</p>
-<h1 id="2-算法机理"><a href="#2-算法机理" class="headerlink" title="2 算法机理"></a>2 算法机理</h1><p>使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因为其可以很好地处理大规模的数据。最基本的倒排索引MapReduce算法如下：</p>
+<h1 id="算法机理"><a href="#算法机理" class="headerlink" title="算法机理"></a>算法机理</h1><p>使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因为其可以很好地处理大规模的数据。最基本的倒排索引MapReduce算法如下：</p>
 <p><img src="http://img.blog.csdn.net/20160225094739337" alt="基本的MapReduce实现的倒排索引算法"></p>
 <p>在该算法中，mapper端的输入是doc id以及doc content，每篇文章都倍分配给一个mapper，在mapper端先对文章进行分词，统计词频等，然后组成postings，最后将每个词以及其对应的postings发送出去； reducer端接收一个term，以及其对应的一系列postings，将每一个postings加入一个列表中，然后对该列表按照doc id排序，最后发送term和其对应的postings列表。 处理流程可见下面的示意图：</p>
 <p><img src="http://img.blog.csdn.net/20160225095420392" alt="倒排索引构建示意图"></p>
 <p>然而，你估计也已经发现了，上述的算法存在一个很明显的可扩展性瓶颈，就是在reducer端它假设有足够大的内存来储存每一个term对应的一系列postings，因为后续还要对这些postings进行排序。因而，当postings变得很大时，reducer端将会耗尽内存。</p>
 <p>一个很简单的解决方案是：我们改变mapper端发送出的key的格式，将key的格式变为<term, docid="">，回想一下在“secondary sorting“中的内容，这样MapReduce框架可以保证reducer端按照docid的顺序接收<key,value>，这样reducer端就无需保存一个列表，只需要记住当前正在处理的term就可以了。当然，在实现时你也需要实现一个自定义的partitioner来保证具有相同term的<term, docid="">可以发送到同一个reducer上。改进算法的伪代码如下：</term,></key,value></term,></p>
 <p><img src="http://img.blog.csdn.net/20160225100512896" alt="改进后的倒排索引算法"></p>
-<h1 id="3-程序实现"><a href="#3-程序实现" class="headerlink" title="3 程序实现"></a>3 程序实现</h1><p>从上部分可以看出，使用MapReduce实现倒排索引的构建原理其实并不是很复杂，然而在实现中还是有一些问题需要注意的。</p>
+<h1 id="程序实现"><a href="#程序实现" class="headerlink" title="程序实现"></a>程序实现</h1><p>从上部分可以看出，使用MapReduce实现倒排索引的构建原理其实并不是很复杂，然而在实现中还是有一些问题需要注意的。</p>
 <ol>
 <li>从算法中我们可以看到，mapper的输入是key是doc id，value为doc的内容，那么如何保证在分片时能恰好按每篇文章分成各个分片传给mapper?</li>
 <li>中文文章的分词如何处理？</li>
@@ -394,7 +394,7 @@
 <p>WholeFileRecordReader负责将FileSplit转换为一条记录，该记录的键是null，值是这个文件的内容。因为只有一条记录，WholeFileRecordReader要么处理这条记录，要么不处理，所以它维护一个名称为processed的布尔变量来表示记录是否被处理过。如果nextKeyValue()方法被调用，文件没有被处理，就打开文件，声明一个长度为文件长度的数组，然后将文件内容放入该数组中，然后实例化value，返回true则表示成功读取记录。还有一些其他的方法，来获取当前的key, value以及读文件的进度。</p>
 <p>这部分内容具体请参考《Hadoop 权威指南》第7章－MapReduce类型与格式。</p>
 <p>完整的代码地址请点击<a href="https://github.com/PengheLiu/MapReduceAlgorithm" target="_blank" rel="external">此处</a></p>
-<h1 id="4-遇到的问题"><a href="#4-遇到的问题" class="headerlink" title="4 遇到的问题"></a>4 遇到的问题</h1><p>代码写完后放到集群上运行时遇到了一些问题，这里也给出我遇到的一些问题。</p>
+<h1 id="遇到的问题"><a href="#遇到的问题" class="headerlink" title="遇到的问题"></a>遇到的问题</h1><p>代码写完后放到集群上运行时遇到了一些问题，这里也给出我遇到的一些问题。</p>
 <ol>
 <li>由于分词功能使用了第三方jar包，将程序打包为jar包放到集群上运行时总是报java.lang.classnotfoundexception. 网上查阅资料得出解决方案<code>job.addFileToClassPath(new Path(&quot;hdfs://10.10.108.52:9000/lph/tool_libs/ansj_seg-3.0-all-in-one.jar&quot;));</code><br>还有其他几种加载第三方jar包的方式，请参考<a href="http://acesdream.blog.51cto.com/10029622/1625688" target="_blank" rel="external">Hadoop应用引用第三方jar的几种方式</a></li>
 <li>运行时也遇到了这么一个错误<code>Error: java.lang.NullPointerException
@@ -579,7 +579,7 @@ at mp.invertedIndexing.Turple.readFields(Turple.java:42)</code><br>查阅资料�
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1 概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-算法机理"><span class="nav-number">2.</span> <span class="nav-text">2 算法机理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-程序实现"><span class="nav-number">3.</span> <span class="nav-text">3 程序实现</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-遇到的问题"><span class="nav-number">4.</span> <span class="nav-text">4 遇到的问题</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#算法机理"><span class="nav-number">2.</span> <span class="nav-text">算法机理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#程序实现"><span class="nav-number">3.</span> <span class="nav-text">程序实现</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#遇到的问题"><span class="nav-number">4.</span> <span class="nav-text">遇到的问题</span></a></li></ol></div>
             
 
           </div>
