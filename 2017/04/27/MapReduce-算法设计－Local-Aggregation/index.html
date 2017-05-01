@@ -74,7 +74,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="Mapreduce," />
 
 
 
@@ -90,15 +90,22 @@
 
 
 
-<meta name="description" content="小渣渣的成牛之路">
-<meta property="og:type" content="website">
-<meta property="og:title" content="念雨">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="MapReduce 算法设计-Local Aggregation本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链">
+<meta name="keywords" content="Mapreduce">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MapReduce 算法设计－Local Aggregation">
+<meta property="og:url" content="http://yoursite.com/2017/04/27/MapReduce-算法设计－Local-Aggregation/index.html">
 <meta property="og:site_name" content="念雨">
-<meta property="og:description" content="小渣渣的成牛之路">
+<meta property="og:description" content="MapReduce 算法设计-Local Aggregation本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链">
+<meta property="og:image" content="http://img.blog.csdn.net/20151226170503018">
+<meta property="og:image" content="http://img.blog.csdn.net/20151226173145932">
+<meta property="og:image" content="http://img.blog.csdn.net/20151226174417471">
+<meta property="og:image" content="http://img.blog.csdn.net/20151227151638380">
+<meta property="og:updated_time" content="2017-05-01T11:59:57.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="念雨">
-<meta name="twitter:description" content="小渣渣的成牛之路">
+<meta name="twitter:title" content="MapReduce 算法设计－Local Aggregation">
+<meta name="twitter:description" content="MapReduce 算法设计-Local Aggregation本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链">
+<meta name="twitter:image" content="http://img.blog.csdn.net/20151226170503018">
 
 
 
@@ -126,13 +133,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/"/>
+  <link rel="canonical" href="http://yoursite.com/2017/04/27/MapReduce-算法设计－Local-Aggregation/"/>
 
 
 
 
 
-  <title>念雨</title>
+  <title>MapReduce 算法设计－Local Aggregation | 念雨</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -157,9 +164,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-   page-home 
- ">
+  <div class="container sidebar-position-left page-post-detail ">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -262,9 +267,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -294,10 +299,7 @@
             
             
               
-                
-                <a class="post-title-link" href="/2017/04/27/MapReduce-算法设计－Local-Aggregation/" itemprop="url">
-                  MapReduce 算法设计－Local Aggregation
-                </a>
+                MapReduce 算法设计－Local Aggregation
               
             
           </h1>
@@ -369,9 +371,7 @@
       
 
       
-        
-          
-            <h1 id="MapReduce-算法设计-Local-Aggregation"><a href="#MapReduce-算法设计-Local-Aggregation" class="headerlink" title="MapReduce 算法设计-Local Aggregation"></a>MapReduce 算法设计-Local Aggregation</h1><p>本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。<br>更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链接。</p>
+        <h1 id="MapReduce-算法设计-Local-Aggregation"><a href="#MapReduce-算法设计-Local-Aggregation" class="headerlink" title="MapReduce 算法设计-Local Aggregation"></a>MapReduce 算法设计-Local Aggregation</h1><p>本文主要内容来自由马里兰大学的Jimmy Lin 和 Chris Dyer写的《Data-Intensive Text Processing with MapReduce》一书中的第三章，如有错误，欢迎指正。<br>更新说明：我发现已经有很多人翻译过这本书的该部分内容，因而以后的博客会更关注程序实现以及实验部分，理论部分会给出其他博客的参考链接。</p>
 <hr>
 <h2 id="1-技术原理"><a href="#1-技术原理" class="headerlink" title="1 技术原理"></a>1 技术原理</h2><p>在数据密集型分布式处理环境中，同步化最重要的一个特征是中间数据的转移，即从产生数据的步骤到使用这些数据的步骤。在Hadoop中，中间结果在通过网络发送出去之前先写入本地磁盘。由于网络传输以及磁盘延迟相对于其他操作比较费时，因而减少中间数据的产生则会提高算法的效率。在MapReduce中，对中间结果的local aggregation是提升算法效率的几种关键手段之一。</p>
 <p>为了说明local aggregation的几种不同手段，我们使用一个简单的例子－word count问题。图1给出了最基本的word count程序的伪代码，原理非常简单：mapper函数为其观测到的每一个单词发送一个中间结果的key-value对，其中key为其观测到的单词本身，value的值为1；reducers函数累加所有的中间结果并输出最终结果。</p>
@@ -421,42 +421,56 @@
 <p>将其中的两个重要的参数Map output bytes 和 Reduce shuffle bytes的五次实验值作出图示：<br><img src="http://img.blog.csdn.net/20151227151638380" alt="五组实验对比结果"></p>
 <p>从图中可以明显看出in-mapper combining方法可以明显减少mapper输出的中间结果key-value对的数量以及需要进行Reduce shuffle的中间结果key-value数量，而combiner并未改变mapper输出的中间结果key-value对的数量只是减少了需要进行Reduce shuffle的数量。因而，我们也可以得出结论，当待处理的数据集含有大量的重复的key时，使用in-mapper combining方法可以明显提升算法提升的效率。而如果考虑可扩展性的话（这里为了实验，关联数组大小设置为100），会损失部分算法性能，但可以兼容大规模数据。</p>
 
-          
+      
+    </div>
+
+    <div>
+      
         
+
       
     </div>
 
     <div>
       
-    </div>
+        
 
-    <div>
       
     </div>
 
     <div>
+      
+        
+
       
     </div>
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/Mapreduce/" rel="tag"># Mapreduce</a>
+          
+        </div>
+      
+
+      
+        
+      
 
       
 
       
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -464,6 +478,10 @@
 
 
           
+  <div class="comments" id="comments">
+    
+  </div>
+
 
         </div>
         
@@ -483,8 +501,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview sidebar-panel sidebar-panel-active">
+      <section class="site-overview sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg"
@@ -546,6 +573,22 @@
 
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#MapReduce-算法设计-Local-Aggregation"><span class="nav-number">1.</span> <span class="nav-text">MapReduce 算法设计-Local Aggregation</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-技术原理"><span class="nav-number">1.1.</span> <span class="nav-text">1 技术原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-程序实现与实验"><span class="nav-number">1.2.</span> <span class="nav-text">2 程序实现与实验</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-程序代码"><span class="nav-number">1.2.1.</span> <span class="nav-text">2.1 程序代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-实验环境"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.2 实验环境</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-结果分析"><span class="nav-number">1.3.</span> <span class="nav-text">3 结果分析</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -659,6 +702,10 @@
   
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
 
   
 
