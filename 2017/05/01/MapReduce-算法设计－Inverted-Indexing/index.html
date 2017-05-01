@@ -1,0 +1,763 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="MapReduce," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta name="keywords" content="MapReduce">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MapReduce 算法设计－Inverted Indexing">
+<meta property="og:url" content="http://yoursite.com/2017/05/01/MapReduce-算法设计－Inverted-Indexing/index.html">
+<meta property="og:site_name" content="念雨">
+<meta property="og:description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta property="og:image" content="http://img.blog.csdn.net/20160225093838497">
+<meta property="og:image" content="http://img.blog.csdn.net/20160225094739337">
+<meta property="og:image" content="http://img.blog.csdn.net/20160225095420392">
+<meta property="og:image" content="http://img.blog.csdn.net/20160225100512896">
+<meta property="og:updated_time" content="2017-05-01T12:24:09.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MapReduce 算法设计－Inverted Indexing">
+<meta name="twitter:description" content="1 概述倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：  在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。 2 算法机理使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的">
+<meta name="twitter:image" content="http://img.blog.csdn.net/20160225093838497">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/05/01/MapReduce-算法设计－Inverted-Indexing/"/>
+
+
+
+
+
+  <title>MapReduce 算法设计－Inverted Indexing | 念雨</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">念雨</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">一念思雨，化仙为凡</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/MapReduce-算法设计－Inverted-Indexing/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PengheLiu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="念雨">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                MapReduce 算法设计－Inverted Indexing
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:21:25+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/分布式计算/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式计算</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1 概述"></a>1 概述</h1><p>倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：</p>
+<p><img src="http://img.blog.csdn.net/20160225093838497" alt="常见倒排索引结构"></p>
+<p>在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。</p>
+<h1 id="2-算法机理"><a href="#2-算法机理" class="headerlink" title="2 算法机理"></a>2 算法机理</h1><p>使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因为其可以很好地处理大规模的数据。最基本的倒排索引MapReduce算法如下：</p>
+<p><img src="http://img.blog.csdn.net/20160225094739337" alt="基本的MapReduce实现的倒排索引算法"></p>
+<p>在该算法中，mapper端的输入是doc id以及doc content，每篇文章都倍分配给一个mapper，在mapper端先对文章进行分词，统计词频等，然后组成postings，最后将每个词以及其对应的postings发送出去； reducer端接收一个term，以及其对应的一系列postings，将每一个postings加入一个列表中，然后对该列表按照doc id排序，最后发送term和其对应的postings列表。 处理流程可见下面的示意图：</p>
+<p><img src="http://img.blog.csdn.net/20160225095420392" alt="倒排索引构建示意图"></p>
+<p>然而，你估计也已经发现了，上述的算法存在一个很明显的可扩展性瓶颈，就是在reducer端它假设有足够大的内存来储存每一个term对应的一系列postings，因为后续还要对这些postings进行排序。因而，当postings变得很大时，reducer端将会耗尽内存。</p>
+<p>一个很简单的解决方案是：我们改变mapper端发送出的key的格式，将key的格式变为<term, docid="">，回想一下在“secondary sorting“中的内容，这样MapReduce框架可以保证reducer端按照docid的顺序接收<key,value>，这样reducer端就无需保存一个列表，只需要记住当前正在处理的term就可以了。当然，在实现时你也需要实现一个自定义的partitioner来保证具有相同term的<term, docid="">可以发送到同一个reducer上。改进算法的伪代码如下：</term,></key,value></term,></p>
+<p><img src="http://img.blog.csdn.net/20160225100512896" alt="改进后的倒排索引算法"></p>
+<h1 id="3-程序实现"><a href="#3-程序实现" class="headerlink" title="3 程序实现"></a>3 程序实现</h1><p>从上部分可以看出，使用MapReduce实现倒排索引的构建原理其实并不是很复杂，然而在实现中还是有一些问题需要注意的。</p>
+<ol>
+<li>从算法中我们可以看到，mapper的输入是key是doc id，value为doc的内容，那么如何保证在分片时能恰好按每篇文章分成各个分片传给mapper?</li>
+<li>中文文章的分词如何处理？</li>
+</ol>
+<p>第二个问题比较容易，我们可以使用第三方分词包来进行文章的分词处理，我这里使用的是<a href="https://github.com/NLPchina/ansj_seg" target="_blank" rel="external">ansj中文分词</a>。</p>
+<p>第一个问题比较复杂一点，我们需要重定义一个FileInputFormat，使用该FileInputFormat mapper可以把整个文件当作一条记录处理。下面代码实现了一个WholeFileInputFormat。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.invertedIndexing;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.<span class="type">IOException</span>;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.<span class="type">Path</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.<span class="type">NullWritable</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.<span class="type">Text</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">InputSplit</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">JobContext</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">RecordReader</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">TaskAttemptContext</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.<span class="type">FileInputFormat</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.<span class="type">FileSplit</span>;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * </div><div class="line"> * @author liupenghe</div><div class="line"> * Date: 2016-02-17</div><div class="line"> *</div><div class="line"> */</div><div class="line">public <span class="class"><span class="keyword">class</span> <span class="title">WholeFileInputFormat</span> <span class="keyword">extends</span> <span class="title">FileInputFormat&lt;NullWritable</span>, <span class="title">Text&gt;</span></span>&#123;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	public <span class="type">RecordReader</span>&lt;<span class="type">NullWritable</span>, <span class="type">Text</span>&gt; createRecordReader(<span class="type">InputSplit</span> split, <span class="type">TaskAttemptContext</span> context)</div><div class="line">			<span class="keyword">throws</span> <span class="type">IOException</span>, <span class="type">InterruptedException</span> &#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> <span class="keyword">new</span> <span class="type">WholeFileRecordReader</span>((<span class="type">FileSplit</span>)split, context);</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">protected</span> boolean isSplitable(<span class="type">JobContext</span> context, <span class="type">Path</span> filename) &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">false</span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在WholeFileInputFormat中，没有使用键，此处表示为NullWritabble，值为文件内容，表示成Text实例。它定义了两个方法：一个是重载isSplitable()方法返回false值，来指定输入文件不被分片；另一个是实现了createRecordReader()来返回一个定制的RecordReader实现，如下面代码所示。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.invertedIndexing;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.IOException;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.conf.Configuration;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.FSDataInputStream;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.FileSystem;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.Path;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.NullWritable;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.Text;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.InputSplit;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.RecordReader;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.TaskAttemptContext;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.FileSplit;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * &#123;<span class="doctag">@link</span> WholeFileRecordReader&#125; is used for transforming the filesplit into a record, and the </div><div class="line"> * content of a record is the whole text.</div><div class="line"> * <span class="doctag">@author</span> liupenghe</div><div class="line"> * Date: 2016-02-17</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">WholeFileRecordReader</span> <span class="keyword">extends</span> <span class="title">RecordReader</span>&lt;<span class="title">NullWritable</span>, <span class="title">Text</span>&gt;</span>&#123;</div><div class="line">	</div><div class="line">	<span class="keyword">private</span> FileSplit fileSplit;</div><div class="line">	<span class="keyword">private</span> Configuration conf;</div><div class="line">	<span class="keyword">private</span> <span class="keyword">boolean</span> processed = <span class="keyword">false</span>;</div><div class="line">	<span class="keyword">private</span> NullWritable key;</div><div class="line">	<span class="keyword">private</span> Text value;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">WholeFileRecordReader</span><span class="params">(FileSplit split, TaskAttemptContext context)</span> </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated constructor stub</span></div><div class="line">		fileSplit = split;</div><div class="line">		conf = context.getConfiguration();</div><div class="line">		key = NullWritable.get();</div><div class="line">		value = <span class="keyword">new</span> Text();</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initialize</span><span class="params">(InputSplit split, TaskAttemptContext context)</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">nextKeyValue</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">if</span>(!processed) &#123;</div><div class="line">			Path filePath = fileSplit.getPath();</div><div class="line">			FileSystem fs = filePath.getFileSystem(conf);</div><div class="line">			FSDataInputStream in = <span class="keyword">null</span>;</div><div class="line">			<span class="keyword">byte</span>[] contents = <span class="keyword">new</span> <span class="keyword">byte</span>[(<span class="keyword">int</span>)fileSplit.getLength()];</div><div class="line">			<span class="keyword">try</span> &#123;</div><div class="line">				in = fs.open(filePath);</div><div class="line">				in.readFully(contents, <span class="number">0</span>, contents.length);</div><div class="line">				value.set(<span class="keyword">new</span> String(contents));</div><div class="line">			&#125; <span class="keyword">finally</span> &#123;</div><div class="line">				in.close();</div><div class="line">				fs.close();</div><div class="line">			&#125;</div><div class="line">			processed = <span class="keyword">true</span>;</div><div class="line">			<span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> NullWritable <span class="title">getCurrentKey</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> key;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> Text <span class="title">getCurrentValue</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> value;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">float</span> <span class="title">getProgress</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> processed ? <span class="number">1.0f</span> : <span class="number">0.0f</span>;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">close</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>WholeFileRecordReader负责将FileSplit转换为一条记录，该记录的键是null，值是这个文件的内容。因为只有一条记录，WholeFileRecordReader要么处理这条记录，要么不处理，所以它维护一个名称为processed的布尔变量来表示记录是否被处理过。如果nextKeyValue()方法被调用，文件没有被处理，就打开文件，声明一个长度为文件长度的数组，然后将文件内容放入该数组中，然后实例化value，返回true则表示成功读取记录。还有一些其他的方法，来获取当前的key, value以及读文件的进度。</p>
+<p>这部分内容具体请参考《Hadoop 权威指南》第7章－MapReduce类型与格式。</p>
+<p>完整的代码地址请点击<a href="https://github.com/PengheLiu/MapReduceAlgorithm" target="_blank" rel="external">此处</a></p>
+<h1 id="4-遇到的问题"><a href="#4-遇到的问题" class="headerlink" title="4 遇到的问题"></a>4 遇到的问题</h1><p>代码写完后放到集群上运行时遇到了一些问题，这里也给出我遇到的一些问题。</p>
+<ol>
+<li>由于分词功能使用了第三方jar包，将程序打包为jar包放到集群上运行时总是报java.lang.classnotfoundexception. 网上查阅资料得出解决方案<code>job.addFileToClassPath(new Path(&quot;hdfs://10.10.108.52:9000/lph/tool_libs/ansj_seg-3.0-all-in-one.jar&quot;));</code><br>还有其他几种加载第三方jar包的方式，请参考<a href="http://acesdream.blog.51cto.com/10029622/1625688" target="_blank" rel="external">Hadoop应用引用第三方jar的几种方式</a></li>
+<li>运行时也遇到了这么一个错误<code>Error: java.lang.NullPointerException
+at mp.invertedIndexing.Turple.readFields(Turple.java:42)</code><br>查阅资料找出原因是我的自定义Writable类型Turple缺少一个默认的构造函数。《Hadoop 权威指南》4.3节说明：所有的Writable实现都必须有一个默认的构造函数以便MapReduce框架可以对它们进行实例化，然后再调用readFielsds函数填充各个字段的值。</li>
+</ol>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/MapReduce/" rel="tag"># MapReduce</a>
+          
+        </div>
+      
+
+      
+        
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/05/01/MapReduce算法设计－Second-Sorting/" rel="prev" title="MapReduce算法设计－Second Sorting">
+                MapReduce算法设计－Second Sorting <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg"
+               alt="PengheLiu" />
+          <p class="site-author-name" itemprop="name">PengheLiu</p>
+           
+              <p class="site-description motion-element" itemprop="description">小渣渣的成牛之路</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives">
+                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/index.html">
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1 概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-算法机理"><span class="nav-number">2.</span> <span class="nav-text">2 算法机理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-程序实现"><span class="nav-number">3.</span> <span class="nav-text">3 程序实现</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-遇到的问题"><span class="nav-number">4.</span> <span class="nav-text">4 遇到的问题</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">PengheLiu</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Muse
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

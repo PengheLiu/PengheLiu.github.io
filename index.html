@@ -273,6 +273,340 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/MapReduce-算法设计－Inverted-Indexing/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PengheLiu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="念雨">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2017/05/01/MapReduce-算法设计－Inverted-Indexing/" itemprop="url">
+                  MapReduce 算法设计－Inverted Indexing
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:21:25+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/分布式计算/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式计算</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1 概述"></a>1 概述</h1><p>倒排索引是搜索引擎中不可或缺的数据结构，利用倒排索引可以快速搜索到包涵搜索关键词的一系列文章。倒排索引的常见结构如下图：</p>
+<p><img src="http://img.blog.csdn.net/20160225093838497" alt="常见倒排索引结构"></p>
+<p>在倒排索引中，每个term与一系列的postings相关联，每个postings由文章的id以及payload组成，而payload常见的是该词在该文章中的词频，有的也加上了位置信息。</p>
+<h1 id="2-算法机理"><a href="#2-算法机理" class="headerlink" title="2 算法机理"></a>2 算法机理</h1><p>使用MapReduce进行倒排索引的构造是目前大多数大数据公司所采用的方式，因为其可以很好地处理大规模的数据。最基本的倒排索引MapReduce算法如下：</p>
+<p><img src="http://img.blog.csdn.net/20160225094739337" alt="基本的MapReduce实现的倒排索引算法"></p>
+<p>在该算法中，mapper端的输入是doc id以及doc content，每篇文章都倍分配给一个mapper，在mapper端先对文章进行分词，统计词频等，然后组成postings，最后将每个词以及其对应的postings发送出去； reducer端接收一个term，以及其对应的一系列postings，将每一个postings加入一个列表中，然后对该列表按照doc id排序，最后发送term和其对应的postings列表。 处理流程可见下面的示意图：</p>
+<p><img src="http://img.blog.csdn.net/20160225095420392" alt="倒排索引构建示意图"></p>
+<p>然而，你估计也已经发现了，上述的算法存在一个很明显的可扩展性瓶颈，就是在reducer端它假设有足够大的内存来储存每一个term对应的一系列postings，因为后续还要对这些postings进行排序。因而，当postings变得很大时，reducer端将会耗尽内存。</p>
+<p>一个很简单的解决方案是：我们改变mapper端发送出的key的格式，将key的格式变为<term, docid="">，回想一下在“secondary sorting“中的内容，这样MapReduce框架可以保证reducer端按照docid的顺序接收<key,value>，这样reducer端就无需保存一个列表，只需要记住当前正在处理的term就可以了。当然，在实现时你也需要实现一个自定义的partitioner来保证具有相同term的<term, docid="">可以发送到同一个reducer上。改进算法的伪代码如下：</term,></key,value></term,></p>
+<p><img src="http://img.blog.csdn.net/20160225100512896" alt="改进后的倒排索引算法"></p>
+<h1 id="3-程序实现"><a href="#3-程序实现" class="headerlink" title="3 程序实现"></a>3 程序实现</h1><p>从上部分可以看出，使用MapReduce实现倒排索引的构建原理其实并不是很复杂，然而在实现中还是有一些问题需要注意的。</p>
+<ol>
+<li>从算法中我们可以看到，mapper的输入是key是doc id，value为doc的内容，那么如何保证在分片时能恰好按每篇文章分成各个分片传给mapper?</li>
+<li>中文文章的分词如何处理？</li>
+</ol>
+<p>第二个问题比较容易，我们可以使用第三方分词包来进行文章的分词处理，我这里使用的是<a href="https://github.com/NLPchina/ansj_seg" target="_blank" rel="external">ansj中文分词</a>。</p>
+<p>第一个问题比较复杂一点，我们需要重定义一个FileInputFormat，使用该FileInputFormat mapper可以把整个文件当作一条记录处理。下面代码实现了一个WholeFileInputFormat。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.invertedIndexing;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.<span class="type">IOException</span>;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.<span class="type">Path</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.<span class="type">NullWritable</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.<span class="type">Text</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">InputSplit</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">JobContext</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">RecordReader</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.<span class="type">TaskAttemptContext</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.<span class="type">FileInputFormat</span>;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.<span class="type">FileSplit</span>;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * </div><div class="line"> * @author liupenghe</div><div class="line"> * Date: 2016-02-17</div><div class="line"> *</div><div class="line"> */</div><div class="line">public <span class="class"><span class="keyword">class</span> <span class="title">WholeFileInputFormat</span> <span class="keyword">extends</span> <span class="title">FileInputFormat&lt;NullWritable</span>, <span class="title">Text&gt;</span></span>&#123;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	public <span class="type">RecordReader</span>&lt;<span class="type">NullWritable</span>, <span class="type">Text</span>&gt; createRecordReader(<span class="type">InputSplit</span> split, <span class="type">TaskAttemptContext</span> context)</div><div class="line">			<span class="keyword">throws</span> <span class="type">IOException</span>, <span class="type">InterruptedException</span> &#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> <span class="keyword">new</span> <span class="type">WholeFileRecordReader</span>((<span class="type">FileSplit</span>)split, context);</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="keyword">protected</span> boolean isSplitable(<span class="type">JobContext</span> context, <span class="type">Path</span> filename) &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">false</span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在WholeFileInputFormat中，没有使用键，此处表示为NullWritabble，值为文件内容，表示成Text实例。它定义了两个方法：一个是重载isSplitable()方法返回false值，来指定输入文件不被分片；另一个是实现了createRecordReader()来返回一个定制的RecordReader实现，如下面代码所示。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.invertedIndexing;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.IOException;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.conf.Configuration;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.FSDataInputStream;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.FileSystem;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.fs.Path;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.NullWritable;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.Text;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.InputSplit;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.RecordReader;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.TaskAttemptContext;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.mapreduce.lib.input.FileSplit;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * &#123;<span class="doctag">@link</span> WholeFileRecordReader&#125; is used for transforming the filesplit into a record, and the </div><div class="line"> * content of a record is the whole text.</div><div class="line"> * <span class="doctag">@author</span> liupenghe</div><div class="line"> * Date: 2016-02-17</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">WholeFileRecordReader</span> <span class="keyword">extends</span> <span class="title">RecordReader</span>&lt;<span class="title">NullWritable</span>, <span class="title">Text</span>&gt;</span>&#123;</div><div class="line">	</div><div class="line">	<span class="keyword">private</span> FileSplit fileSplit;</div><div class="line">	<span class="keyword">private</span> Configuration conf;</div><div class="line">	<span class="keyword">private</span> <span class="keyword">boolean</span> processed = <span class="keyword">false</span>;</div><div class="line">	<span class="keyword">private</span> NullWritable key;</div><div class="line">	<span class="keyword">private</span> Text value;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">WholeFileRecordReader</span><span class="params">(FileSplit split, TaskAttemptContext context)</span> </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated constructor stub</span></div><div class="line">		fileSplit = split;</div><div class="line">		conf = context.getConfiguration();</div><div class="line">		key = NullWritable.get();</div><div class="line">		value = <span class="keyword">new</span> Text();</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initialize</span><span class="params">(InputSplit split, TaskAttemptContext context)</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">nextKeyValue</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">if</span>(!processed) &#123;</div><div class="line">			Path filePath = fileSplit.getPath();</div><div class="line">			FileSystem fs = filePath.getFileSystem(conf);</div><div class="line">			FSDataInputStream in = <span class="keyword">null</span>;</div><div class="line">			<span class="keyword">byte</span>[] contents = <span class="keyword">new</span> <span class="keyword">byte</span>[(<span class="keyword">int</span>)fileSplit.getLength()];</div><div class="line">			<span class="keyword">try</span> &#123;</div><div class="line">				in = fs.open(filePath);</div><div class="line">				in.readFully(contents, <span class="number">0</span>, contents.length);</div><div class="line">				value.set(<span class="keyword">new</span> String(contents));</div><div class="line">			&#125; <span class="keyword">finally</span> &#123;</div><div class="line">				in.close();</div><div class="line">				fs.close();</div><div class="line">			&#125;</div><div class="line">			processed = <span class="keyword">true</span>;</div><div class="line">			<span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> NullWritable <span class="title">getCurrentKey</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> key;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> Text <span class="title">getCurrentValue</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> value;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">float</span> <span class="title">getProgress</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">return</span> processed ? <span class="number">1.0f</span> : <span class="number">0.0f</span>;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">close</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>WholeFileRecordReader负责将FileSplit转换为一条记录，该记录的键是null，值是这个文件的内容。因为只有一条记录，WholeFileRecordReader要么处理这条记录，要么不处理，所以它维护一个名称为processed的布尔变量来表示记录是否被处理过。如果nextKeyValue()方法被调用，文件没有被处理，就打开文件，声明一个长度为文件长度的数组，然后将文件内容放入该数组中，然后实例化value，返回true则表示成功读取记录。还有一些其他的方法，来获取当前的key, value以及读文件的进度。</p>
+<p>这部分内容具体请参考《Hadoop 权威指南》第7章－MapReduce类型与格式。</p>
+<p>完整的代码地址请点击<a href="https://github.com/PengheLiu/MapReduceAlgorithm" target="_blank" rel="external">此处</a></p>
+<h1 id="4-遇到的问题"><a href="#4-遇到的问题" class="headerlink" title="4 遇到的问题"></a>4 遇到的问题</h1><p>代码写完后放到集群上运行时遇到了一些问题，这里也给出我遇到的一些问题。</p>
+<ol>
+<li>由于分词功能使用了第三方jar包，将程序打包为jar包放到集群上运行时总是报java.lang.classnotfoundexception. 网上查阅资料得出解决方案<code>job.addFileToClassPath(new Path(&quot;hdfs://10.10.108.52:9000/lph/tool_libs/ansj_seg-3.0-all-in-one.jar&quot;));</code><br>还有其他几种加载第三方jar包的方式，请参考<a href="http://acesdream.blog.51cto.com/10029622/1625688" target="_blank" rel="external">Hadoop应用引用第三方jar的几种方式</a></li>
+<li>运行时也遇到了这么一个错误<code>Error: java.lang.NullPointerException
+at mp.invertedIndexing.Turple.readFields(Turple.java:42)</code><br>查阅资料找出原因是我的自定义Writable类型Turple缺少一个默认的构造函数。《Hadoop 权威指南》4.3节说明：所有的Writable实现都必须有一个默认的构造函数以便MapReduce框架可以对它们进行实例化，然后再调用readFielsds函数填充各个字段的值。</li>
+</ol>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/MapReduce算法设计－Second-Sorting/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PengheLiu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1493291881551&di=44de5d0f6bc5aabe94f78b62c3d7fe23&imgtype=0&src=http%3A%2F%2Fp11.qhimg.com%2Ft016942a59d9256400c.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="念雨">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2017/05/01/MapReduce算法设计－Second-Sorting/" itemprop="url">
+                  MapReduce算法设计－Second Sorting
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:10:34+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/分布式计算/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式计算</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>#1 算法机理<br>请参考博文：<br><a href="http://blog.csdn.net/xhyzfl/article/details/6917508" target="_blank" rel="external">Data-Intensive Text Processing with MapReduce第三章（4）-SECONDARY SORTING
+</a></p>
+<p>#2 程序实现</p>
+<p>##2.1 数据准备<br>文中讲解使用的示例数据为传感器数据，这里为了程序实验，我利用python写了自动生成相关数据的脚本，代码如下：</p>
+<figure class="highlight livecodeserver"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">import <span class="built_in">random</span></div><div class="line"><span class="keyword">text</span> = <span class="string">""</span></div><div class="line"></div><div class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">0</span>, <span class="number">10000</span>):</div><div class="line">    sensor_id = <span class="string">"m"</span> + str(<span class="built_in">random</span>.randint(<span class="number">1</span>, <span class="number">200</span>))</div><div class="line">    timestamp = str(<span class="built_in">random</span>.randint(<span class="number">1</span>, <span class="number">366</span>))</div><div class="line">    <span class="built_in">value</span> = str(<span class="built_in">random</span>.randint(<span class="number">-100</span>, <span class="number">100</span>))</div><div class="line">    <span class="keyword">text</span> += (sensor_id + <span class="string">","</span> + timestamp + <span class="string">":"</span> + <span class="built_in">value</span> + <span class="string">"\n"</span>)</div><div class="line"></div><div class="line">fs = <span class="built_in">open</span>(<span class="string">"sensor_records.txt"</span>, <span class="string">"w"</span>)</div><div class="line">fs.<span class="built_in">write</span>(<span class="keyword">text</span>)</div></pre></td></tr></table></figure>
+<p>生成的数据格式如下：<br>每一行的第一个单词代表传感器编号，第二个为时间戳（这里是用的一年的第几天），最后一项为传感器的值。<br><figure class="highlight css"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">m91</span>,235<span class="selector-pseudo">:-95</span></div><div class="line"><span class="selector-tag">m174</span>,355<span class="selector-pseudo">:-77</span></div><div class="line"><span class="selector-tag">m87</span>,227<span class="selector-pseudo">:-66</span></div><div class="line"><span class="selector-tag">m99</span>,221<span class="selector-pseudo">:91</span></div><div class="line"><span class="selector-tag">m172</span>,69<span class="selector-pseudo">:92</span></div><div class="line"><span class="selector-tag">m45</span>,55<span class="selector-pseudo">:66</span></div><div class="line"><span class="selector-tag">m104</span>,194<span class="selector-pseudo">:87</span></div><div class="line"><span class="selector-tag">m57</span>,6<span class="selector-pseudo">:26</span></div></pre></td></tr></table></figure></p>
+<p>##2.2 程序实现</p>
+<p>###2.2.1 实现组合键<br>实现组合键的思路同上一节讲的TextPair类似，基本思路就是重写一个定制的WritableComparable，这里说明下，我这里的compareTo函数里面是按照字符顺序对各个值进行比较的，所有底下的结果你可能会发现时间戳怎么没有从小到大排，其实已经排序了，只是按照的是字符顺序，如果想使用整形排序，则在compareTo函数里将类型转为整形再进行比较即可。<br>代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> mp.secondsorting;</div><div class="line"></div><div class="line"><span class="keyword">import</span> java.io.DataInput;</div><div class="line"><span class="keyword">import</span> java.io.DataOutput;</div><div class="line"><span class="keyword">import</span> java.io.IOException;</div><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.Text;</div><div class="line"><span class="keyword">import</span> org.apache.hadoop.io.WritableComparable;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * 实现定制的组合键</div><div class="line"> * <span class="doctag">@author</span> liupengeh</div><div class="line"> *</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">CompositeWritable</span> <span class="keyword">implements</span> <span class="title">WritableComparable</span>&lt;<span class="title">CompositeWritable</span>&gt;</span>&#123;</div><div class="line">	<span class="keyword">private</span> Text sensor_id;</div><div class="line">	<span class="keyword">private</span> Text timestamp;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">CompositeWritable</span><span class="params">()</span></span>&#123;     <span class="comment">//该构造函数一定要加上，否则作业运行时会报错：Error: java.io.IOException: Unable to initialize any output collector</span></div><div class="line">		set(<span class="keyword">new</span> Text(), <span class="keyword">new</span> Text());</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">CompositeWritable</span><span class="params">(String p1, String p2)</span></span>&#123;</div><div class="line">		set(<span class="keyword">new</span> Text(p1), <span class="keyword">new</span> Text(p2));</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="title">CompositeWritable</span><span class="params">(Text p1, Text p2)</span> </span>&#123;</div><div class="line">		set(p1, p2);</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> Text <span class="title">getSensor_id</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> sensor_id;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setSensor_id</span><span class="params">(Text sensor_id)</span> </span>&#123;</div><div class="line">		<span class="keyword">this</span>.sensor_id = sensor_id;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="function"><span class="keyword">public</span> Text <span class="title">getTimestamp</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> timestamp;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setTimestamp</span><span class="params">(Text timestamp)</span> </span>&#123;</div><div class="line">		<span class="keyword">this</span>.timestamp = timestamp;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(Text p1, Text p2)</span> </span>&#123;</div><div class="line">		<span class="keyword">this</span>.setSensor_id(p1);</div><div class="line">		<span class="keyword">this</span>.setTimestamp(p2);</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">readFields</span><span class="params">(DataInput arg0)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">this</span>.sensor_id.readFields(arg0);</div><div class="line">		<span class="keyword">this</span>.timestamp.readFields(arg0);</div><div class="line">		</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">(DataOutput arg0)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">this</span>.sensor_id.write(arg0);</div><div class="line">		<span class="keyword">this</span>.timestamp.write(arg0);</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">compareTo</span><span class="params">(CompositeWritable o)</span> </span>&#123;</div><div class="line">		<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">		<span class="keyword">int</span> cmp = <span class="keyword">this</span>.sensor_id.compareTo(o.sensor_id);</div><div class="line">		<span class="keyword">if</span>(cmp != <span class="number">0</span>) &#123;</div><div class="line">			<span class="keyword">return</span> cmp;</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">this</span>.timestamp.compareTo(o.timestamp);</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span></span>&#123;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">this</span>.sensor_id.hashCode() * <span class="number">163</span> + <span class="keyword">this</span>.timestamp.hashCode();</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object o)</span></span>&#123;</div><div class="line">		<span class="keyword">if</span>(o <span class="keyword">instanceof</span> CompositeWritable) &#123;</div><div class="line">			CompositeWritable cw = (CompositeWritable) o;</div><div class="line">			<span class="keyword">return</span> <span class="keyword">this</span>.sensor_id.equals(cw.sensor_id) &amp;&amp; <span class="keyword">this</span>.timestamp.equals(cw.timestamp);</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="meta">@Override</span></div><div class="line">	<span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">this</span>.sensor_id.toString() + <span class="string">","</span> + <span class="keyword">this</span>.timestamp.toString();</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>###2.2.2 实现Mapper<br>Mapper的思路很简单，即遇到每一行，将sensor_id，timestamp以及value取出来后发送出去即可。代码如下：</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">static</span> class SecondSortingMapper extends Mapper&lt;LongWritable, Text, CompositeWritable, Text&gt; &#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 二次排序的mapper</div><div class="line">		 */</div><div class="line">		<span class="keyword">public</span> <span class="keyword">void</span> <span class="built_in">map</span>(LongWritable <span class="built_in">key</span>, Text value, Context context) </div><div class="line">			<span class="keyword">throws</span> IOException, InterruptedException &#123;</div><div class="line">			<span class="keyword">String</span> <span class="built_in">line</span> = value.toString();</div><div class="line">			<span class="comment">//利用字符串分割取出senser_id, timestamp以及对应的值，这里可以根据文本的特点来具体看怎么划分，我这里的格式为t,m:v</span></div><div class="line">			<span class="keyword">String</span>[] lineSegments = <span class="built_in">line</span>.<span class="built_in">split</span>(<span class="string">":"</span>);</div><div class="line">			<span class="keyword">String</span> realValue = lineSegments[<span class="number">1</span>];</div><div class="line">			<span class="keyword">String</span> sensorId = lineSegments[<span class="number">0</span>].<span class="built_in">split</span>(<span class="string">","</span>)[<span class="number">0</span>];</div><div class="line">			<span class="keyword">String</span> timestamp = lineSegments[<span class="number">0</span>].<span class="built_in">split</span>(<span class="string">","</span>)[<span class="number">1</span>];</div><div class="line">			CompositeWritable cw = <span class="keyword">new</span> CompositeWritable(sensorId, timestamp);</div><div class="line">			context.write(cw, <span class="keyword">new</span> Text(realValue));</div><div class="line">			</div><div class="line">		&#125;</div><div class="line">	&#125;</div></pre></td></tr></table></figure>
+<h3 id="2-2-3-实现定制的partitioner"><a href="#2-2-3-实现定制的partitioner" class="headerlink" title="2.2.3 实现定制的partitioner"></a>2.2.3 实现定制的partitioner</h3><p>为了将同一个sensor_id对应不同时间戳的值发送到同一个reducer上，我们需要一个定制的partitioner，该partitioner只根据组合键中的sensor_id的hashCode来划分reducer，代码如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">public static <span class="class"><span class="keyword">class</span> <span class="title">SecondSortingPartitioner</span> <span class="keyword">extends</span> <span class="title">Partitioner&lt;CompositeWritable</span>, <span class="title">Text&gt;</span> </span>&#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 自定义partitioner，使得按照sensor_id划分</div><div class="line">		 */</div><div class="line">		<span class="meta">@Override</span></div><div class="line">		public int getPartition(<span class="type">CompositeWritable</span> arg0, <span class="type">Text</span> arg1, int arg2) &#123;</div><div class="line">			<span class="comment">// TODO Auto-generated method stub</span></div><div class="line">			<span class="keyword">return</span> arg0.getSensor_id().hashCode() % arg2;</div><div class="line">		&#125;</div><div class="line">		</div><div class="line">	&#125;</div></pre></td></tr></table></figure>
+<h3 id="2-2-4-实现定制的GroupComparator"><a href="#2-2-4-实现定制的GroupComparator" class="headerlink" title="2.2.4 实现定制的GroupComparator"></a>2.2.4 实现定制的GroupComparator</h3><p>尽管定制的partitioner可以保证将相同sensor_id的所有时间的戳的值发送到同一个reducer，但当最后输出到文件中会发现，虽然结果按照时间戳排序了，但每个结果占一行，假如我们希望一个sensor_id对应一行结果，而结果也是按照时间戳排序的，这时候就需要加入一个GroupComparator，代码如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">public static <span class="class"><span class="keyword">class</span> <span class="title">SensorTimestampGroupingComparator</span> <span class="keyword">extends</span> <span class="title">WritableComparator</span> </span>&#123;</div><div class="line">		<span class="comment">/**</span></div><div class="line">		 * 尽管定制的partitioner可以保证同一个sensor_id对应的不同时间戳的数据可以分到同一个reducer上，</div><div class="line">		 * 但我们仍需要考虑使reducer根据真实的“key”划分组</div><div class="line">		 * 加入这个的效果如下：</div><div class="line">		 * 如果不加入该比较器，得到的结果格式如下：</div><div class="line">		 * m99,336	-93,</div><div class="line">		 * m99,348	52,</div><div class="line">		 * m99,354	70,</div><div class="line">		 * m99,357	97,</div><div class="line">		 * m99,64	-22,</div><div class="line">		 * m99,67	41,</div><div class="line">		 * m99,74	-62,</div><div class="line">		 * 加入该比较器后结果可以显示在一行：</div><div class="line">		 * m99,*	-93,52,70,97,-22,41,-62,</div><div class="line">		 */</div><div class="line">		</div><div class="line">		public <span class="type">SensorTimestampGroupingComparator</span>() &#123;</div><div class="line">			<span class="keyword">super</span>(<span class="type">CompositeWritable</span>.<span class="keyword">class</span>, <span class="literal">true</span>);</div><div class="line">		&#125;</div><div class="line">		<span class="meta">@Override</span></div><div class="line">		public int compare(<span class="type">WritableComparable</span> w1, <span class="type">WritableComparable</span> w2) &#123;</div><div class="line">			<span class="type">CompositeWritable</span> c1 = (<span class="type">CompositeWritable</span>) w1;</div><div class="line">			<span class="type">CompositeWritable</span> c2 = (<span class="type">CompositeWritable</span>) w2;</div><div class="line">			<span class="keyword">return</span> c1.getSensor_id().compareTo(c2.getSensor_id());</div><div class="line">		&#125;</div><div class="line">	&#125;</div></pre></td></tr></table></figure>
+<h3 id="2-2-5-实现reducer"><a href="#2-2-5-实现reducer" class="headerlink" title="2.2.5 实现reducer"></a>2.2.5 实现reducer</h3><p>前面的都写好后，reducer的实现就简单很多了，但这里有一个点需要注意，如果想保留时间戳，那么就需要结果按行输出，就不需要上面所提的GroupComparator了；如果想让每个传感器对应的结果自成一行，则需要使用GroupComparator。代码如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">public static <span class="class"><span class="keyword">class</span> <span class="title">SecondSortingReducer</span> <span class="keyword">extends</span> <span class="title">Reducer&lt;CompositeWritable</span>, <span class="title">Text</span>, <span class="title">CompositeWritable</span>, <span class="title">Text&gt;</span> </span>&#123;</div><div class="line">	<span class="comment">/**</span></div><div class="line">	 * 二次排序的reducer</div><div class="line">	 */</div><div class="line">	</div><div class="line">		</div><div class="line">	public void reduce(<span class="type">CompositeWritable</span> key, <span class="type">Iterable</span>&lt;<span class="type">Text</span>&gt; values, <span class="type">Context</span> context)</div><div class="line">		<span class="keyword">throws</span> <span class="type">IOException</span>, <span class="type">InterruptedException</span> &#123;</div><div class="line">		<span class="type">String</span> res = <span class="string">""</span>;</div><div class="line">		<span class="keyword">for</span>(<span class="type">Text</span> t: values)&#123;</div><div class="line">			res += (t.toString() + <span class="string">","</span>);</div><div class="line">		&#125;</div><div class="line">		<span class="comment">//如果想保留时间戳，将结果分行输出</span></div><div class="line">		<span class="comment">//context.write(key, new Text(res));</span></div><div class="line">		</div><div class="line">		<span class="comment">//如果想将结果输出到同一行，则需要使用下面的SensorTimestampGroupingComparator，并且将时间戳改为通配符“＊”</span></div><div class="line">		context.write(<span class="keyword">new</span> <span class="type">CompositeWritable</span>(key.getSensor_id(), <span class="keyword">new</span> <span class="type">Text</span>(<span class="string">"*"</span>)), <span class="keyword">new</span> <span class="type">Text</span>(res));</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="2-3-验证结果"><a href="#2-3-验证结果" class="headerlink" title="2.3 验证结果"></a>2.3 验证结果</h2><h4 id="2-3-1-查看原始数据"><a href="#2-3-1-查看原始数据" class="headerlink" title="2.3.1  查看原始数据"></a>2.3.1  查看原始数据</h4><p><code>cat datas/second_sorting/sensor_records.txt</code><br>可以看到如下，无论传感器编号还是时间戳都是乱序的。<br><figure class="highlight css"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">...</div><div class="line"><span class="selector-tag">m200</span>,257<span class="selector-pseudo">:-19</span></div><div class="line"><span class="selector-tag">m166</span>,147<span class="selector-pseudo">:77</span></div><div class="line"><span class="selector-tag">m28</span>,266<span class="selector-pseudo">:-9</span></div><div class="line"><span class="selector-tag">m53</span>,91<span class="selector-pseudo">:-69</span></div><div class="line"><span class="selector-tag">m179</span>,296<span class="selector-pseudo">:76</span></div><div class="line"><span class="selector-tag">m168</span>,209<span class="selector-pseudo">:-92</span></div><div class="line"><span class="selector-tag">m62</span>,358<span class="selector-pseudo">:78</span></div><div class="line"><span class="selector-tag">m135</span>,284<span class="selector-pseudo">:30</span></div><div class="line"><span class="selector-tag">m32</span>,235<span class="selector-pseudo">:-79</span></div><div class="line">...</div></pre></td></tr></table></figure></p>
+<h3 id="2-3-2-不使用GroupComparator的结果"><a href="#2-3-2-不使用GroupComparator的结果" class="headerlink" title="2.3.2 不使用GroupComparator的结果"></a>2.3.2 不使用GroupComparator的结果</h3><p><code>hadoop fs -cat /lph/second_sorting/result/part-r-00000</code><br>可以看到传感器编号排序，时间戳也排序了，但每个结果独占一行。</p>
+<figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">...</div><div class="line">m98,<span class="number">44</span>	<span class="number">24</span>,</div><div class="line">m98,<span class="number">47</span>	<span class="number">26</span>,</div><div class="line">m98,<span class="number">48</span>	<span class="number">44</span>,</div><div class="line">m98,<span class="number">51</span>	<span class="number">2</span>,</div><div class="line">m98,<span class="number">60</span>	<span class="number">79</span>,</div><div class="line">m98,<span class="number">65</span>	<span class="number">-16</span>,</div><div class="line">m98,<span class="number">69</span>	<span class="number">-71</span>,</div><div class="line">m98,<span class="number">79</span>	<span class="number">40</span>,</div><div class="line">m98,<span class="number">90</span>	<span class="number">-95</span>,</div><div class="line">m99,<span class="number">1</span>	<span class="number">-36</span>,<span class="number">35</span>,</div><div class="line">m99,<span class="number">106</span>	<span class="number">86</span>,</div><div class="line">m99,<span class="number">110</span>	<span class="number">-68</span>,</div><div class="line">m99,<span class="number">118</span>	<span class="number">-91</span>,</div><div class="line">m99,<span class="number">133</span>	<span class="number">5</span>,</div><div class="line">m99,<span class="number">139</span>	<span class="number">92</span>,</div><div class="line">m99,<span class="number">140</span>	<span class="number">3</span>,<span class="number">-76</span>,</div><div class="line">m99,<span class="number">144</span>	<span class="number">-54</span>,</div><div class="line">m99,<span class="number">153</span>	<span class="number">-87</span>,</div><div class="line">...</div></pre></td></tr></table></figure>
+<h3 id="2-3-3-使用GroupComparator结果"><a href="#2-3-3-使用GroupComparator结果" class="headerlink" title="2.3.3 使用GroupComparator结果"></a>2.3.3 使用GroupComparator结果</h3><p><code>hadoop fs -cat /lph/second_sorting/result3/part-r-00000  | grep m9*</code><br>可以从以下结果看出，传感器编号排序了，并且结果显示在一行，按照时间戳的顺序。<br><figure class="highlight lsl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">m98,*	<span class="number">62</span>,<span class="number">-58</span>,<span class="number">28</span>,<span class="number">-62</span>,<span class="number">53</span>,<span class="number">-87</span>,<span class="number">45</span>,<span class="number">43</span>,<span class="number">-79</span>,<span class="number">-89</span>,<span class="number">-37</span>,<span class="number">-68</span>,<span class="number">89</span>,<span class="number">86</span>,<span class="number">31</span>,<span class="number">-56</span>,<span class="number">-79</span>,<span class="number">99</span>,<span class="number">22</span>,<span class="number">84</span>,<span class="number">-21</span>,<span class="number">6</span>,<span class="number">-37</span>,<span class="number">16</span>,<span class="number">95</span>,<span class="number">-78</span>,<span class="number">20</span>,<span class="number">-80</span>,<span class="number">-60</span>,<span class="number">10</span>,<span class="number">2</span>,<span class="number">37</span>,<span class="number">75</span>,<span class="number">-86</span>,<span class="number">6</span>,<span class="number">63</span>,<span class="number">2</span>,<span class="number">-81</span>,<span class="number">15</span>,<span class="number">66</span>,<span class="number">-50</span>,<span class="number">2</span>,<span class="number">43</span>,<span class="number">66</span>,<span class="number">-49</span>,<span class="number">24</span>,<span class="number">26</span>,<span class="number">44</span>,<span class="number">2</span>,<span class="number">79</span>,<span class="number">-16</span>,<span class="number">-71</span>,<span class="number">40</span>,<span class="number">-95</span>,</div><div class="line">m99,*	<span class="number">-36</span>,<span class="number">35</span>,<span class="number">86</span>,<span class="number">-68</span>,<span class="number">-91</span>,<span class="number">5</span>,<span class="number">92</span>,<span class="number">3</span>,<span class="number">-76</span>,<span class="number">-54</span>,<span class="number">-87</span>,<span class="number">70</span>,<span class="number">-94</span>,<span class="number">72</span>,<span class="number">-97</span>,<span class="number">-89</span>,<span class="number">95</span>,<span class="number">31</span>,<span class="number">82</span>,<span class="number">40</span>,<span class="number">98</span>,<span class="number">-18</span>,<span class="number">16</span>,<span class="number">-77</span>,<span class="number">73</span>,<span class="number">-74</span>,<span class="number">44</span>,<span class="number">91</span>,<span class="number">-21</span>,<span class="number">-18</span>,<span class="number">-16</span>,<span class="number">-58</span>,<span class="number">-25</span>,<span class="number">54</span>,<span class="number">30</span>,<span class="number">53</span>,<span class="number">-70</span>,<span class="number">-66</span>,<span class="number">-93</span>,<span class="number">52</span>,<span class="number">70</span>,<span class="number">97</span>,<span class="number">-22</span>,<span class="number">41</span>,<span class="number">-62</span>,<span class="number">-35</span>,</div></pre></td></tr></table></figure></p>
+<h1 id="3-总结"><a href="#3-总结" class="headerlink" title="3 总结"></a>3 总结</h1><p>使用值（这里把时间戳当成值，你也可以使用后面的值）进行二次排序在程序编写中尽管不是必须，但掌握这种技能总是有好处的，谢谢你的浏览。</p>
+<p>源代码github地址：<br><a href="https://github.com/PengheLiu/MapReduceAlgorithm" target="_blank" rel="external">MapReduce算法设计</a></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/MapReduce算法设计－计算单词共现矩阵/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -662,7 +996,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives">
-                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-count">4</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
